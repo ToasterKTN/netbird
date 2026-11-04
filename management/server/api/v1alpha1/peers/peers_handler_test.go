@@ -1,3 +1,5 @@
+//go:build openapivalidation
+
 package peers
 
 import (

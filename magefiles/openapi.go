@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/magefile/mage/mg"
-	"github.com/netbirdio/netbird/shared/management/http/apiv1alpha1"
+	apiv1alpha1 "github.com/netbirdio/netbird/shared/management/http/apiv1alpha1/tooling"
 )
 
 var apiPath = filepath.Join("shared", "management", "http", "apiv1alpha1")

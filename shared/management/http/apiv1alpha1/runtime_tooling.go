@@ -1,3 +1,5 @@
+//go:build openapivalidation
+
 package apiv1alpha1
 
 import (
@@ -22,6 +24,9 @@ import (
 //
 //go:embed bundle.yaml
 var bundle []byte
+
+// ValidationCompiled reports whether OpenAPI request validation is compiled in.
+const ValidationCompiled = true
 
 func CreateV1ApiValidatingMiddleware() (*V1ValidatorMiddleware, error) {
 	doc, err := libopenapi.NewDocumentWithConfiguration(bundle, &datamodel.DocumentConfiguration{

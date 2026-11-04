@@ -1,4 +1,5 @@
-package apiv1alpha1
+// Package tooling bundles the v1alpha1 OpenAPI spec and generates Go bindings (used by mage).
+package tooling
 
 import (
 	"log/slog"
