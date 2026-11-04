@@ -13,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
+	"github.com/netbirdio/netbird/client/internal/defaults"
 	"github.com/netbirdio/netbird/client/internal/peer"
 	"github.com/netbirdio/netbird/client/internal/routemanager/common"
 	"github.com/netbirdio/netbird/client/internal/routemanager/iface"
@@ -23,7 +24,7 @@ import (
 )
 
 const (
-	DefaultInterval = time.Minute
+	DefaultInterval = defaults.DNSRouteInterval
 
 	minInterval     = 2 * time.Second
 	failureInterval = 5 * time.Second

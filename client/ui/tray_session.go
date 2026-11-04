@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 
-	nbstatus "github.com/netbirdio/netbird/client/status"
+	"github.com/netbirdio/netbird/client/internal/durfmt"
 	"github.com/netbirdio/netbird/client/ui/authsession"
 	"github.com/netbirdio/netbird/client/ui/services"
 )
@@ -207,7 +207,7 @@ func (t *Tray) buildSessionWarningBody(meta map[string]string) string {
 	if err != nil {
 		return t.loc.T("notify.sessionWarning.bodyGeneric")
 	}
-	remaining := nbstatus.FormatRemainingDuration(time.Until(deadline))
+	remaining := durfmt.FormatRemainingDuration(time.Until(deadline))
 	return t.loc.T("notify.sessionWarning.body", "remaining", remaining)
 }
 
