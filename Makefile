@@ -1,5 +1,8 @@
-.PHONY: lint lint-all lint-install setup-hooks test-unit test-privileged
+.PHONY: lint lint-all lint-install setup-hooks test-unit test-unit-full test-privileged build-full
 GOLANGCI_LINT := $(shell pwd)/bin/golangci-lint
+
+# Optional feature tags (docs/build-tags.md). Release builds use all of them.
+FULL_TAGS := route53 openapivalidation idp_okta idp_authentik rosenpass upnp profiling sftp qrcode
 
 # Install golangci-lint locally if needed
 $(GOLANGCI_LINT):
@@ -30,6 +33,16 @@ setup-hooks:
 # Runs as a normal user with no sudo and leaves host networking untouched.
 test-unit:
 	@go test -tags devcert -timeout 10m ./...
+
+# Unit tests with every optional feature compiled in, as release builds ship.
+test-unit-full:
+	@go test -tags 'devcert $(FULL_TAGS)' -timeout 10m ./...
+
+# Build the client and combined server with every optional feature, as release does.
+build-full:
+	@mkdir -p ./bin
+	@go build -tags '$(FULL_TAGS)' -o ./bin/netbird ./client
+	@go build -tags '$(FULL_TAGS)' -o ./bin/netbird-server ./combined
 
 # Privileged suite: runs the `privileged`-tagged tests inside a --privileged
 # --cap-add=NET_ADMIN container via the ory/dockertest harness. Requires Docker.

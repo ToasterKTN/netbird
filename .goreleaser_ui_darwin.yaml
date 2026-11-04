@@ -31,6 +31,15 @@ builds:
     mod_timestamp: "{{ .CommitTimestamp }}"
     tags:
       - production
+      - route53
+      - openapivalidation
+      - idp_okta
+      - idp_authentik
+      - rosenpass
+      - upnp
+      - profiling
+      - sftp
+      - qrcode
 
 universal_binaries:
   - id: netbird-ui-darwin

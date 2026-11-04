@@ -26,6 +26,15 @@ builds:
     mod_timestamp: "{{ .CommitTimestamp }}"
     tags:
       - production
+      - route53
+      - openapivalidation
+      - idp_okta
+      - idp_authentik
+      - rosenpass
+      - upnp
+      - profiling
+      - sftp
+      - qrcode
 
   - id: netbird-ui-windows-amd64
     dir: client/ui
@@ -43,6 +52,15 @@ builds:
     mod_timestamp: "{{ .CommitTimestamp }}"
     tags:
       - production
+      - route53
+      - openapivalidation
+      - idp_okta
+      - idp_authentik
+      - rosenpass
+      - upnp
+      - profiling
+      - sftp
+      - qrcode
 
   - id: netbird-ui-windows-arm64
     dir: client/ui
@@ -61,6 +79,15 @@ builds:
     mod_timestamp: "{{ .CommitTimestamp }}"
     tags:
       - production
+      - route53
+      - openapivalidation
+      - idp_okta
+      - idp_authentik
+      - rosenpass
+      - upnp
+      - profiling
+      - sftp
+      - qrcode
 
 archives:
   - id: linux-arch
