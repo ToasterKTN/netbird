@@ -1292,7 +1292,7 @@ func createRouterManager(t *testing.T) (*DefaultAccountManager, *update_channel.
 	permissionsManager := permissions.NewManager(store)
 	peersManager := peers.NewManager(store, permissionsManager)
 
-	// A go-cache janitor only stops through a GC finalizer, which would leave synctest bubbles with a goroutine that never exits.
+	// The memory store has no janitor goroutine, but keep the store outside synctest bubbles.
 	cacheStore, err := cache.NewStore(ctx, 100*time.Millisecond, 0, 100)
 	if err != nil {
 		return nil, nil, err

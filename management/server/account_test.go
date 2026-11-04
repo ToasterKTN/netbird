@@ -3749,7 +3749,7 @@ func buildTestManager(t testing.TB, store store.Store, nmdataStore *networkmapdb
 		Return(nil).
 		AnyTimes()
 
-	// The go-cache janitor only stops via a GC finalizer and would outlive synctest bubbles.
+	// The memory store has no janitor goroutine, but keep the store outside synctest bubbles.
 	cacheStore, err := cache.NewStore(ctx, 100*time.Millisecond, 0, 100)
 	if err != nil {
 		return nil, nil, err
