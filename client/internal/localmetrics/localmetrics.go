@@ -11,11 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	dto "github.com/prometheus/client_model/go"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/netbirdio/netbird/client/internal/metrics/promtext"
 	"github.com/netbirdio/netbird/client/internal/peer"
 )
 
@@ -39,7 +37,7 @@ type statusSource interface {
 
 // GathererProvider returns the current client metrics gatherer, or nil when
 // no engine is running. It is called on every scrape.
-type GathererProvider func() prometheus.Gatherer
+type GathererProvider func() promtext.Gatherer
 
 // Manager runs the local /metrics HTTP endpoint according to the active
 // client configuration. Reconcile is safe to call on every config change.
@@ -83,22 +81,19 @@ func (m *Manager) Reconcile(enabled bool, addr string) {
 	}
 	m.stop()
 
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(newCollector(m.status))
-
-	gatherers := prometheus.Gatherers{registry, prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
+	gatherers := promtext.Gatherers{newCollector(m.status), promtext.GathererFunc(func() []promtext.Family {
 		if m.clientMetrics == nil {
-			return nil, nil
+			return nil
 		}
 		g := m.clientMetrics()
 		if g == nil {
-			return nil, nil
+			return nil
 		}
 		return g.Gather()
 	})}
 
 	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.HandlerFor(gatherers, promhttp.HandlerOpts{}))
+	mux.Handle("/metrics", promtext.Handler(gatherers))
 
 	srv := &http.Server{
 		Addr:              addr,
@@ -155,66 +150,25 @@ func (m *Manager) stop() {
 	m.addr = ""
 }
 
-// collector converts status recorder snapshots into Prometheus metrics at scrape time.
+// collector converts status recorder snapshots into metric families at scrape time.
 type collector struct {
 	status statusSource
-
-	managementConnected *prometheus.Desc
-	signalConnected     *prometheus.Desc
-	peersTotal          *prometheus.Desc
-	peersConnected      *prometheus.Desc
-	peerLatency         *prometheus.Desc
 }
 
 func newCollector(status statusSource) *collector {
-	return &collector{
-		status: status,
-		managementConnected: prometheus.NewDesc(
-			"netbird_management_connected",
-			"Whether the client is connected to the management service (1 connected, 0 disconnected).",
-			nil, nil,
-		),
-		signalConnected: prometheus.NewDesc(
-			"netbird_signal_connected",
-			"Whether the client is connected to the signal service (1 connected, 0 disconnected).",
-			nil, nil,
-		),
-		peersTotal: prometheus.NewDesc(
-			"netbird_peers",
-			"Number of peers known to this client.",
-			nil, nil,
-		),
-		peersConnected: prometheus.NewDesc(
-			"netbird_peers_connected",
-			"Number of connected peers by connection type.",
-			[]string{"connection_type"}, nil,
-		),
-		peerLatency: prometheus.NewDesc(
-			"netbird_peer_latency_seconds",
-			"Round-trip latency per directly connected peer; relayed connections have no latency measurement.",
-			[]string{"peer"}, nil,
-		),
-	}
+	return &collector{status: status}
 }
 
-// Describe implements prometheus.Collector.
-func (c *collector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- c.managementConnected
-	ch <- c.signalConnected
-	ch <- c.peersTotal
-	ch <- c.peersConnected
-	ch <- c.peerLatency
+func gauge(name, help string, metrics ...promtext.Metric) promtext.Family {
+	return promtext.Family{Name: name, Help: help, Type: promtext.Gauge, Metrics: metrics}
 }
 
-// Collect implements prometheus.Collector.
-func (c *collector) Collect(ch chan<- prometheus.Metric) {
-	ch <- prometheus.MustNewConstMetric(c.managementConnected, prometheus.GaugeValue, boolToFloat(c.status.GetManagementState().Connected))
-	ch <- prometheus.MustNewConstMetric(c.signalConnected, prometheus.GaugeValue, boolToFloat(c.status.GetSignalState().Connected))
-
+// Gather implements promtext.Gatherer.
+func (c *collector) Gather() []promtext.Family {
 	peers := c.status.GetPeerStates()
-	ch <- prometheus.MustNewConstMetric(c.peersTotal, prometheus.GaugeValue, float64(len(peers)))
 
 	var p2p, relayed float64
+	var latencies []promtext.Metric
 	for _, p := range peers {
 		if p.ConnStatus != peer.StatusConnected {
 			continue
@@ -226,11 +180,28 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 		p2p++
 
 		if latency := p.Latency.Seconds(); latency > 0 {
-			ch <- prometheus.MustNewConstMetric(c.peerLatency, prometheus.GaugeValue, latency, p.FQDN)
+			latencies = append(latencies, promtext.Metric{Labels: []promtext.Label{{Name: "peer", Value: p.FQDN}}, Value: latency})
 		}
 	}
-	ch <- prometheus.MustNewConstMetric(c.peersConnected, prometheus.GaugeValue, p2p, "p2p")
-	ch <- prometheus.MustNewConstMetric(c.peersConnected, prometheus.GaugeValue, relayed, "relay")
+
+	return []promtext.Family{
+		gauge("netbird_management_connected",
+			"Whether the client is connected to the management service (1 connected, 0 disconnected).",
+			promtext.Metric{Value: boolToFloat(c.status.GetManagementState().Connected)}),
+		gauge("netbird_signal_connected",
+			"Whether the client is connected to the signal service (1 connected, 0 disconnected).",
+			promtext.Metric{Value: boolToFloat(c.status.GetSignalState().Connected)}),
+		gauge("netbird_peers",
+			"Number of peers known to this client.",
+			promtext.Metric{Value: float64(len(peers))}),
+		gauge("netbird_peers_connected",
+			"Number of connected peers by connection type.",
+			promtext.Metric{Labels: []promtext.Label{{Name: "connection_type", Value: "p2p"}}, Value: p2p},
+			promtext.Metric{Labels: []promtext.Label{{Name: "connection_type", Value: "relay"}}, Value: relayed}),
+		gauge("netbird_peer_latency_seconds",
+			"Round-trip latency per directly connected peer; relayed connections have no latency measurement.",
+			latencies...),
+	}
 }
 
 func boolToFloat(b bool) float64 {
