@@ -1,7 +1,11 @@
-// Package xid generates globally unique, time-sortable 20-character IDs in the
-// same format as github.com/rs/xid: 12 bytes (4-byte big-endian Unix seconds,
-// 3-byte machine ID, 2-byte PID, 3-byte counter) encoded as lowercase
-// base32hex without padding.
+// Package xid generates globally unique, time-sortable 20-character IDs
+// identical in layout and derivation to github.com/rs/xid v1.3.0: 4-byte
+// big-endian Unix seconds, first 3 bytes of md5(platform host ID, else
+// hostname), 2-byte PID (xor crc32 of /proc/self/cpuset inside containers),
+// and a 3-byte counter seeded randomly, encoded as lowercase base32hex.
+//
+// Ported from github.com/rs/xid, Copyright (c) 2015 Olivier Poitrey,
+// MIT License (see LICENSE in this directory).
 package xid
 
 import (
@@ -9,6 +13,8 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"encoding/binary"
+	"fmt"
+	"hash/crc32"
 	"os"
 	"sync/atomic"
 	"time"
@@ -18,33 +24,42 @@ import (
 type ID [12]byte
 
 var (
-	encoding  = base32.NewEncoding("0123456789abcdefghijklmnopqrstuv").WithPadding(base32.NoPadding)
-	machineID = readMachineID()
-	pid       = uint16(os.Getpid())
-	counter   = randomUint32()
+	encoding        = base32.NewEncoding("0123456789abcdefghijklmnopqrstuv").WithPadding(base32.NoPadding)
+	objectIDCounter = randInt()
+	machineID       = readMachineID()
+	pid             = processID()
 )
 
-func readMachineID() [3]byte {
-	var id [3]byte
-	if host, err := os.Hostname(); err == nil && host != "" {
-		sum := md5.Sum([]byte(host))
-		copy(id[:], sum[:])
-		return id
+func processID() int {
+	p := os.Getpid()
+	// Inside a container /proc/self/cpuset is not "/"; mix it in as rs/xid does.
+	if b, err := os.ReadFile("/proc/self/cpuset"); err == nil && len(b) > 1 {
+		p ^= int(crc32.ChecksumIEEE(b))
 	}
-	if _, err := rand.Read(id[:]); err != nil {
-		panic("xid: cannot read random bytes: " + err.Error())
+	return p
+}
+
+func readMachineID() []byte {
+	id := make([]byte, 3)
+	hid, err := readPlatformMachineID()
+	if err != nil || len(hid) == 0 {
+		hid, err = os.Hostname()
+	}
+	if err == nil && len(hid) != 0 {
+		sum := md5.Sum([]byte(hid))
+		copy(id, sum[:])
+	} else if _, randErr := rand.Read(id); randErr != nil {
+		panic(fmt.Errorf("xid: cannot get hostname nor generate a random number: %v; %v", err, randErr))
 	}
 	return id
 }
 
-func randomUint32() *atomic.Uint32 {
-	var b [4]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		panic("xid: cannot read random bytes: " + err.Error())
+func randInt() uint32 {
+	b := make([]byte, 3)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Errorf("xid: cannot generate random number: %v;", err))
 	}
-	var c atomic.Uint32
-	c.Store(binary.BigEndian.Uint32(b[:]))
-	return &c
+	return uint32(b[0])<<16 | uint32(b[1])<<8 | uint32(b[2])
 }
 
 // New returns a new ID for the current time.
@@ -55,11 +70,11 @@ func New() ID {
 // NewWithTime returns a new ID for the given time.
 func NewWithTime(t time.Time) ID {
 	var id ID
-	binary.BigEndian.PutUint32(id[0:4], uint32(t.Unix()))
-	copy(id[4:7], machineID[:])
-	binary.BigEndian.PutUint16(id[7:9], pid)
-	c := counter.Add(1)
-	id[9], id[10], id[11] = byte(c>>16), byte(c>>8), byte(c)
+	binary.BigEndian.PutUint32(id[:], uint32(t.Unix()))
+	id[4], id[5], id[6] = machineID[0], machineID[1], machineID[2]
+	id[7], id[8] = byte(pid>>8), byte(pid)
+	i := atomic.AddUint32(&objectIDCounter, 1)
+	id[9], id[10], id[11] = byte(i>>16), byte(i>>8), byte(i)
 	return id
 }
 
@@ -72,3 +87,9 @@ func (id ID) String() string {
 func (id ID) Time() time.Time {
 	return time.Unix(int64(binary.BigEndian.Uint32(id[0:4])), 0)
 }
+
+// Machine returns the 3-byte machine ID part.
+func (id ID) Machine() []byte { return id[4:7] }
+
+// Pid returns the process ID part.
+func (id ID) Pid() uint16 { return binary.BigEndian.Uint16(id[7:9]) }
