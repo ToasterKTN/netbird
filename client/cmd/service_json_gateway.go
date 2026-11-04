@@ -17,7 +17,7 @@ import (
 
 	"github.com/netbirdio/netbird/client/internal/daemonaddr"
 	"github.com/netbirdio/netbird/client/internal/ipcauth"
-	"github.com/netbirdio/netbird/client/proto"
+	"github.com/netbirdio/netbird/client/proto/gateway"
 )
 
 // jsonPeerIdentity is the context key under which the connecting HTTP client's
@@ -118,7 +118,7 @@ func (p *program) startJSONGateway(jsonListener *socketListener, daemonEndpoint 
 	if err != nil {
 		return fmt.Errorf("create daemon client for JSON gateway: %w", err)
 	}
-	if err := proto.RegisterDaemonServiceHandler(p.ctx, mux, conn); err != nil {
+	if err := gateway.RegisterDaemonServiceHandler(p.ctx, mux, conn); err != nil {
 		if cerr := conn.Close(); cerr != nil {
 			log.Debugf("close daemon client after failed JSON gateway registration: %v", cerr)
 		}
