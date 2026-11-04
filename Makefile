@@ -39,10 +39,14 @@ test-unit-full:
 	@go test -tags 'devcert $(FULL_TAGS)' -timeout 10m ./...
 
 # Build the client and combined server with every optional feature, as release does.
+# The server needs CGO_ENABLED=1: the SQLite store uses mattn/go-sqlite3, which is a
+# stub that fails at startup when built without cgo (same as upstream .goreleaser.yaml).
+# The client does not use SQLite and stays static with CGO_ENABLED=0.
 build-full:
 	@mkdir -p ./bin
-	@go build -tags '$(FULL_TAGS)' -o ./bin/netbird ./client
-	@go build -tags '$(FULL_TAGS)' -o ./bin/netbird-server ./combined
+	@CGO_ENABLED=0 go build -tags '$(FULL_TAGS)' -o ./bin/netbird ./client
+	@CGO_ENABLED=1 go build -tags '$(FULL_TAGS)' -o ./bin/netbird-server ./combined
+	@go version -m ./bin/netbird-server | grep -q 'CGO_ENABLED=1' || { echo "netbird-server was built without cgo; SQLite would not work" >&2; exit 1; }
 
 # Privileged suite: runs the `privileged`-tagged tests inside a --privileged
 # --cap-add=NET_ADMIN container via the ory/dockertest harness. Requires Docker.
