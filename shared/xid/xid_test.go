@@ -1,7 +1,9 @@
 package xid
 
 import (
+	"crypto/md5"
 	"encoding/hex"
+	"os"
 	"regexp"
 	"testing"
 	"time"
@@ -33,4 +35,17 @@ func TestNewIsUniqueAndSortable(t *testing.T) {
 	}
 	now := time.Unix(time.Now().Unix(), 0)
 	require.Equal(t, now, NewWithTime(now).Time())
+}
+
+// Captured on the build box with github.com/rs/xid v1.3.0 (id.Machine()):
+// 5a4daa. The derivation below is rs/xid's: md5 of the platform host ID.
+func TestMachineIDDerivation(t *testing.T) {
+	hid, err := readPlatformMachineID()
+	if err != nil || hid == "" {
+		hid, err = os.Hostname()
+		require.NoError(t, err)
+	}
+	sum := md5.Sum([]byte(hid))
+	require.Equal(t, sum[:3], New().Machine())
+	require.Equal(t, uint16(processID()), New().Pid())
 }
