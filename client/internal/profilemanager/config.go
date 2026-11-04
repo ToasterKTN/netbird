@@ -19,9 +19,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/netbirdio/netbird/client/iface"
+	"github.com/netbirdio/netbird/client/internal/defaults"
 	"github.com/netbirdio/netbird/client/internal/ipcauth"
-	"github.com/netbirdio/netbird/client/internal/routemanager/dynamic"
 	"github.com/netbirdio/netbird/client/mdm"
 	"github.com/netbirdio/netbird/client/ssh"
 	mgm "github.com/netbirdio/netbird/shared/management/client"
@@ -55,7 +54,7 @@ var newMgmProber = func(ctx context.Context, addr string, key wgtypes.Key, tlsEn
 }
 
 var DefaultInterfaceBlacklist = []string{
-	iface.WgInterfaceDefault, "wt", "utun", "tun0", "zt", "ZeroTier", "wg", "ts",
+	defaults.WgInterfaceDefault, "wt", "utun", "tun0", "zt", "ZeroTier", "wg", "ts",
 	"Tailscale", "tailscale", "docker", "veth", "br-", "lo",
 }
 
@@ -331,7 +330,7 @@ func newConfigSkeleton() *Config {
 		// Remote jobs are an explicit opt-in and default off, including for
 		// legacy configs (a nil value materializes to false at connect time).
 		RemoteJobsAllowed: util.False(),
-		WgPort:            iface.DefaultWgPort,
+		WgPort:            defaults.DefaultWgPort,
 	}
 }
 
@@ -540,7 +539,7 @@ func (config *Config) apply(input ConfigInput) (updated bool, err error) {
 		config.WgIface = *input.InterfaceName
 		updated = true
 	} else if config.WgIface == "" {
-		config.WgIface = iface.WgInterfaceDefault
+		config.WgIface = defaults.WgInterfaceDefault
 		log.Infof("using default Wireguard interface %s", config.WgIface)
 		updated = true
 	}
@@ -710,7 +709,7 @@ func (config *Config) apply(input ConfigInput) (updated bool, err error) {
 		config.DNSRouteInterval = *input.DNSRouteInterval
 		updated = true
 	} else if config.DNSRouteInterval == 0 {
-		config.DNSRouteInterval = dynamic.DefaultInterval
+		config.DNSRouteInterval = defaults.DNSRouteInterval
 		log.Infof("using default DNS route interval %s", config.DNSRouteInterval)
 		updated = true
 	}
@@ -840,7 +839,7 @@ func (config *Config) apply(input ConfigInput) (updated bool, err error) {
 		config.MTU = *input.MTU
 		updated = true
 	} else if config.MTU == 0 {
-		config.MTU = iface.DefaultMTU
+		config.MTU = defaults.DefaultMTU
 		log.Infof("using default MTU %d", config.MTU)
 		updated = true
 	}

@@ -2,5 +2,7 @@
 
 package configurer
 
+import "github.com/netbirdio/netbird/client/internal/defaults"
+
 // WgInterfaceDefault is a default interface name of Netbird
-const WgInterfaceDefault = "wt0"
+const WgInterfaceDefault = defaults.WgInterfaceDefault
