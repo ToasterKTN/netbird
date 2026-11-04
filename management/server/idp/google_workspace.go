@@ -1,5 +1,3 @@
-//go:build idp_google
-
 package idp
 
 import (

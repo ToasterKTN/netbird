@@ -1,4 +1,4 @@
-//go:build !idp_okta || !idp_authentik || !idp_google
+//go:build !idp_okta || !idp_authentik
 
 package idp
 
@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewManagerReportsMissingBuildTag(t *testing.T) {
-	for typ, tag := range map[string]string{"okta": "idp_okta", "authentik": "idp_authentik", "google": "idp_google"} {
+	for typ, tag := range map[string]string{"okta": "idp_okta", "authentik": "idp_authentik"} {
 		_, err := NewManager(context.Background(), Config{ManagerType: typ, ClientConfig: &ClientConfig{}, ExtraConfig: ExtraConfig{}}, nil)
 		if err == nil || !strings.Contains(err.Error(), "not compiled in") {
 			continue // compiled in for this build
