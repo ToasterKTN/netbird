@@ -1,0 +1,120 @@
+// Copyright 2026 Princess B33f Heavy Industries / Dave Shanley
+// SPDX-License-Identifier: MIT
+
+package golang
+
+import (
+	"github.com/pb33f/go-yaml"
+	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/orderedmap"
+)
+
+type Kind int
+
+const (
+	KindUnknown Kind = iota
+	KindAny
+	KindObject
+	KindArray
+	KindMap
+	KindString
+	KindInteger
+	KindNumber
+	KindBoolean
+	KindRef
+	KindEnum
+	KindAllOf
+	KindUnion
+)
+
+type UnionKind int
+
+const (
+	UnionNone UnionKind = iota
+	UnionOneOf
+	UnionAnyOf
+)
+
+type UnionStrategy int
+
+const (
+	UnionRawMessage UnionStrategy = iota
+	UnionDiscriminator
+)
+
+type Discriminator struct {
+	PropertyName string
+	Mapping      map[string]string
+	Optional     bool
+}
+
+type Source struct {
+	Line   int
+	Column int
+	Ref    string
+}
+
+// SchemaIR is the neutral hub both generation directions converge on. It
+// carries two distinct channels. The shaping fields (Kind, Properties, Items,
+// AdditionalProperties, Union, AllOf, Required, Nullable, Format, …) determine
+// the generated Go type. SourceSchema carries the full original schema for the
+// fidelity the IR does not model (validation keywords, conditionals, content,
+// vocabulary, and so on); when ExactSource is set, openapiFromIR emits
+// SourceSchema verbatim and ignores the shaping fields. FieldMetadata marks an
+// IR whose SourceSchema should be rendered as $ref sibling metadata rather than
+// inlined.
+type SchemaIR struct {
+	Name                 string
+	Ref                  string
+	Kind                 Kind
+	DynamicRef           bool
+	Format               string
+	Description          string
+	Title                string
+	Nullable             bool
+	Required             map[string]struct{}
+	Properties           *orderedmap.Map[string, *SchemaIR]
+	PatternProperties    *orderedmap.Map[string, *SchemaIR]
+	Items                *SchemaIR
+	PrefixItems          []*SchemaIR
+	AdditionalProperties *SchemaIR
+	AdditionalAllowed    *bool
+	Enum                 []*yaml.Node
+	Const                *yaml.Node
+	AllOf                []*SchemaIR
+	Union                *UnionIR
+	Extensions           *orderedmap.Map[string, *yaml.Node]
+	Source               *Source
+	ReadOnly             bool
+	WriteOnly            bool
+	Deprecated           bool
+	FieldMetadata        bool
+	ExactSource          bool
+	Comments             []string
+	SourceSchema         *highbase.Schema
+}
+
+type UnionIR struct {
+	Kind          UnionKind
+	Variants      []*SchemaIR
+	Discriminator *Discriminator
+	Strategy      UnionStrategy
+	FromMultiType bool
+}
+
+func newObjectIR(name string) *SchemaIR {
+	return &SchemaIR{
+		Name:       name,
+		Kind:       KindObject,
+		Required:   make(map[string]struct{}),
+		Properties: orderedmap.New[string, *SchemaIR](),
+	}
+}
+
+func isRequired(ir *SchemaIR, name string) bool {
+	if ir == nil || ir.Required == nil {
+		return false
+	}
+	_, ok := ir.Required[name]
+	return ok
+}

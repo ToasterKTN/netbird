@@ -1,0 +1,302 @@
+// Copyright 2023 Princess B33f Heavy Industries / Dave Shanley
+// SPDX-License-Identifier: MIT
+
+package parameters
+
+import (
+	"encoding/json"
+	"strconv"
+	"strings"
+
+	"github.com/pb33f/libopenapi/datamodel/high/base"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+
+	"github.com/pb33f/libopenapi-validator/config"
+	"github.com/pb33f/libopenapi-validator/errors"
+	"github.com/pb33f/libopenapi-validator/helpers"
+)
+
+// ValidateCookieArray will validate a cookie parameter that is an array
+func ValidateCookieArray(
+	sch *base.Schema, param *v3.Parameter, value string, pathTemplate string, operation string, renderedSchema string,
+) []*errors.ValidationError {
+	var validationErrors []*errors.ValidationError
+	itemsSchema := sch.Items.A.Schema()
+
+	var renderedItemsSchema string
+	if itemsSchema != nil {
+		rendered, _ := itemsSchema.RenderInline()
+		schemaBytes, _ := json.Marshal(rendered)
+		renderedItemsSchema = string(schemaBytes)
+	}
+
+	// header arrays can only be encoded as CSV
+	items := helpers.ExplodeQueryValue(value, helpers.DefaultDelimited)
+
+	// now check each item in the array
+	for _, item := range items {
+		// for each type defined in the item's schema, check the item
+		for _, itemType := range itemsSchema.Type {
+			switch itemType {
+			case helpers.Integer, helpers.Number:
+				if _, err := helpers.ParseNumber(item); err != nil {
+					validationErrors = append(validationErrors,
+						errors.IncorrectCookieParamArrayNumber(param, item, sch, itemsSchema, pathTemplate, operation, renderedItemsSchema))
+				}
+			case helpers.Boolean:
+				if _, err := strconv.ParseBool(item); err != nil {
+					validationErrors = append(validationErrors,
+						errors.IncorrectCookieParamArrayBoolean(param, item, sch, itemsSchema, pathTemplate, operation, renderedItemsSchema))
+					break
+				}
+				// check for edge-cases "0" and "1" which can also be parsed into valid booleans
+				if item == "0" || item == "1" {
+					validationErrors = append(validationErrors,
+						errors.IncorrectCookieParamArrayBoolean(param, item, sch, itemsSchema, pathTemplate, operation, renderedItemsSchema))
+				}
+			case helpers.String:
+				// do nothing for now.
+				continue
+			}
+		}
+	}
+	return validationErrors
+}
+
+// ValidateHeaderArray will validate a header parameter that is an array
+func ValidateHeaderArray(
+	sch *base.Schema, param *v3.Parameter, value string, pathTemplate string, operation string, renderedSchema string,
+) []*errors.ValidationError {
+	var validationErrors []*errors.ValidationError
+	itemsSchema := sch.Items.A.Schema()
+
+	var renderedItemsSchema string
+	if itemsSchema != nil {
+		rendered, _ := itemsSchema.RenderInline()
+		schemaBytes, _ := json.Marshal(rendered)
+		renderedItemsSchema = string(schemaBytes)
+	}
+
+	// header arrays can only be encoded as CSV
+	items := helpers.ExplodeQueryValue(value, helpers.DefaultDelimited)
+
+	// now check each item in the array
+	for _, item := range items {
+		// for each type defined in the item's schema, check the item
+		for _, itemType := range itemsSchema.Type {
+			switch itemType {
+			case helpers.Integer, helpers.Number:
+				if _, err := helpers.ParseNumber(item); err != nil {
+					validationErrors = append(validationErrors,
+						errors.IncorrectHeaderParamArrayNumber(param, item, sch, itemsSchema, pathTemplate, operation, renderedItemsSchema))
+				}
+			case helpers.Boolean:
+				if _, err := strconv.ParseBool(item); err != nil {
+					validationErrors = append(validationErrors,
+						errors.IncorrectHeaderParamArrayBoolean(param, item, sch, itemsSchema, pathTemplate, operation, renderedItemsSchema))
+					break
+				}
+				// check for edge-cases "0" and "1" which can also be parsed into valid booleans
+				if item == "0" || item == "1" {
+					validationErrors = append(validationErrors,
+						errors.IncorrectHeaderParamArrayBoolean(param, item, sch, itemsSchema, pathTemplate, operation, renderedItemsSchema))
+				}
+			case helpers.String:
+				// do nothing for now.
+				continue
+			}
+		}
+	}
+	return validationErrors
+}
+
+// ValidateQueryArray will validate a query parameter that is an array
+func ValidateQueryArray(
+	sch *base.Schema, param *v3.Parameter, ef string, contentWrapped bool, validationOptions *config.ValidationOptions, pathTemplate string, operation string, renderedSchema string,
+) []*errors.ValidationError {
+	var validationErrors []*errors.ValidationError
+	itemsSchema := sch.Items.A.Schema()
+
+	// Get rendered items schema for ReferenceSchema field in errors (uses cache if available)
+	renderedItemsSchema := GetRenderedSchema(itemsSchema, validationOptions)
+
+	// check for an exploded bit on the schema.
+	// if it's exploded, then we need to check each item in the array
+	// if it's not exploded, then we need to check the whole array as a string
+	var items []string
+	if param.IsExploded() {
+		items = helpers.ExplodeQueryValue(ef, param.Style)
+	} else {
+		// check for a style of form (or no style) and if so, explode the value
+		if param.Style == "" || param.Style == helpers.Form {
+			if !contentWrapped {
+				items = helpers.ExplodeQueryValue(ef, param.Style)
+			} else {
+				items = []string{ef}
+			}
+		} else {
+			switch param.Style {
+			case helpers.PipeDelimited, helpers.SpaceDelimited:
+				items = helpers.ExplodeQueryValue(ef, param.Style)
+			}
+		}
+	}
+
+	// check if the param is within an enum
+	checkEnum := func(item string, parsed any) {
+		// check if the array param is within an enum
+		if sch.Items.IsA() {
+			itemsSch := sch.Items.A.Schema()
+			if itemsSch.Enum != nil {
+				matchFound := false
+				for _, enumVal := range itemsSch.Enum {
+					if enumValueMatches(item, parsed, enumVal.Value) {
+						matchFound = true
+						break
+					}
+				}
+				if !matchFound {
+					validationErrors = append(validationErrors,
+						errors.IncorrectQueryParamEnumArray(param, item, sch, pathTemplate, operation, renderedItemsSchema))
+				}
+			}
+		}
+	}
+
+	// now check each item in the array
+	seen := make(map[string]struct{})
+	uniqueItems := true
+	var duplicates []string
+	for _, item := range items {
+
+		if _, exists := seen[item]; exists {
+			uniqueItems = false
+			duplicates = append(duplicates, item)
+		}
+		seen[item] = struct{}{}
+
+		// for each type defined in the item's schema, check the item
+		for _, itemType := range itemsSchema.Type {
+			switch itemType {
+			case helpers.Integer:
+				parsed, err := helpers.ParseInteger(item)
+				if err != nil {
+					validationErrors = append(validationErrors,
+						errors.IncorrectQueryParamArrayInteger(param, item, sch, itemsSchema, pathTemplate, operation, renderedItemsSchema))
+					break
+				}
+				// will it blend?
+				checkEnum(item, parsed)
+			case helpers.Number:
+				if _, err := helpers.ParseNumber(item); err != nil {
+					validationErrors = append(validationErrors,
+						errors.IncorrectQueryParamArrayNumber(param, item, sch, itemsSchema, pathTemplate, operation, renderedItemsSchema))
+					break
+				}
+				// will it blend?
+				checkEnum(item, nil)
+
+			case helpers.Boolean:
+				if _, err := strconv.ParseBool(item); err != nil {
+					validationErrors = append(validationErrors,
+						errors.IncorrectQueryParamArrayBoolean(param, item, sch, itemsSchema, pathTemplate, operation, renderedItemsSchema))
+				}
+			case helpers.Object:
+				validationErrors = append(validationErrors,
+					ValidateParameterSchema(itemsSchema,
+						nil,
+						item,
+						"Query array parameter",
+						"The query parameter (which is an array)",
+						param.Name,
+						helpers.ParameterValidation,
+						helpers.ParameterValidationQuery, validationOptions)...)
+
+			case helpers.String:
+
+				// will it float?
+				checkEnum(item, nil)
+			}
+		}
+	}
+
+	// check for min and max items
+	if sch.MaxItems != nil {
+		if len(items) > int(*sch.MaxItems) {
+			validationErrors = append(validationErrors,
+				errors.IncorrectParamArrayMaxNumItems(param, sch, *sch.MaxItems, int64(len(items)), pathTemplate, operation, renderedSchema))
+		}
+	}
+
+	if sch.MinItems != nil {
+		if len(items) < int(*sch.MinItems) {
+			validationErrors = append(validationErrors,
+				errors.IncorrectParamArrayMinNumItems(param, sch, *sch.MinItems, int64(len(items)), pathTemplate, operation, renderedSchema))
+		}
+	}
+
+	// check for unique items
+	if sch.UniqueItems != nil {
+		if *sch.UniqueItems && !uniqueItems {
+			validationErrors = append(validationErrors,
+				errors.IncorrectParamArrayUniqueItems(param, sch, strings.Join(duplicates, ", "), pathTemplate, operation, renderedSchema))
+		}
+	}
+	return validationErrors
+}
+
+// ValidateQueryParamStyle will validate a query parameter by style
+func ValidateQueryParamStyle(param *v3.Parameter, as []*helpers.QueryParam) []*errors.ValidationError {
+	var validationErrors []*errors.ValidationError
+	if param.Style == helpers.DeepObject {
+		if prefixParam, nestedParam, ok := helpers.DeepObjectPathConflict(as); ok {
+			return []*errors.ValidationError{errors.InvalidDeepObjectPathConflict(param, prefixParam, nestedParam)}
+		}
+	}
+stopValidation:
+	for _, qp := range as {
+		for i := range qp.Values {
+			switch param.Style {
+			case helpers.DeepObject:
+				// check if the object has additional properties defined that treat this as an array
+				if param.Schema != nil && helpers.DeepObjectAllowsMultipleValues(param.Schema.Schema(), qp) {
+					continue
+				}
+				if len(qp.Values) > 1 {
+					validationErrors = append(validationErrors, errors.InvalidDeepObject(param, qp))
+					break stopValidation
+				}
+
+			case helpers.PipeDelimited:
+				// check if explode is false, but we have used an array style
+				if !param.IsExploded() {
+					if len(qp.Values) > 1 {
+						validationErrors = append(validationErrors, errors.IncorrectPipeDelimiting(param, qp))
+						break stopValidation
+					}
+				}
+			case helpers.SpaceDelimited:
+				// check if explode is false, but we have used an array style
+				if !param.IsExploded() {
+					if len(qp.Values) > 1 {
+						validationErrors = append(validationErrors, errors.IncorrectSpaceDelimiting(param, qp))
+						break stopValidation
+					}
+				}
+			default:
+				// check for a delimited list; a percent-encoded comma is data, only a literal comma delimits.
+				checkValue := qp.Values[i]
+				if i < len(qp.RawValues) {
+					checkValue = qp.RawValues[i]
+				}
+				if helpers.DoesFormParamContainDelimiter(checkValue, param.Style) {
+					if param.Explode != nil && *param.Explode {
+						validationErrors = append(validationErrors, errors.IncorrectFormEncoding(param, qp, i))
+						break stopValidation
+					}
+				}
+			}
+		}
+	}
+	return validationErrors // defaults to true if no style is set.
+}

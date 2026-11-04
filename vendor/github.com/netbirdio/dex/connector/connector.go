@@ -1,0 +1,138 @@
+// Package connector defines interfaces for federated identity strategies.
+package connector
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+)
+
+// UserNotInRequiredGroupsError is returned by a connector when a user
+// successfully authenticates but is not a member of any of the required groups.
+// The server will respond with HTTP 403 Forbidden instead of 500.
+type UserNotInRequiredGroupsError struct {
+	UserID string
+	Groups []string
+}
+
+func (e *UserNotInRequiredGroupsError) Error() string {
+	return fmt.Sprintf("user %q is not in any of the required groups %v", e.UserID, e.Groups)
+}
+
+// Connector is a mechanism for federating login to a remote identity service.
+//
+// Implementations are expected to implement either the PasswordConnector or
+// CallbackConnector interface.
+type Connector interface{}
+
+// Scopes represents additional data requested by the clients about the end user.
+type Scopes struct {
+	// The client has requested a refresh token from the server.
+	OfflineAccess bool
+
+	// The client has requested group information about the end user.
+	Groups bool
+}
+
+// Identity represents the ID Token claims supported by the server.
+type Identity struct {
+	UserID            string
+	Username          string
+	PreferredUsername string
+	Email             string
+	EmailVerified     bool
+
+	Groups []string
+
+	// ConnectorData holds data used by the connector for subsequent requests after initial
+	// authentication, such as access tokens for upstream provides.
+	//
+	// This data is never shared with end users, OAuth clients, or through the API.
+	ConnectorData []byte
+}
+
+// PasswordConnector is an interface implemented by connectors which take a
+// username and password.
+// Prompt() is used to inform the handler what to display in the password
+// template. If this returns an empty string, it'll default to "Username".
+type PasswordConnector interface {
+	Prompt() string
+	Login(ctx context.Context, s Scopes, username, password string) (identity Identity, validPassword bool, err error)
+}
+
+// CallbackConnector is an interface implemented by connectors which use an OAuth
+// style redirect flow to determine user information.
+type CallbackConnector interface {
+	// The initial URL to redirect the user to.
+	//
+	// OAuth2 implementations should request different scopes from the upstream
+	// identity provider based on the scopes requested by the downstream client.
+	// For example, if the downstream client requests a refresh token from the
+	// server, the connector should also request a token from the provider.
+	//
+	// Many identity providers have arbitrary restrictions on refresh tokens. For
+	// example Google only allows a single refresh token per client/user/scopes
+	// combination, and wont return a refresh token even if offline access is
+	// requested if one has already been issues. There's no good general answer
+	// for these kind of restrictions, and may require this package to become more
+	// aware of the global set of user/connector interactions.
+	LoginURL(s Scopes, callbackURL, state string) (string, []byte, error)
+
+	// Handle the callback to the server and return an identity.
+	HandleCallback(s Scopes, connData []byte, r *http.Request) (identity Identity, err error)
+}
+
+// SAMLConnector represents SAML connectors which implement the HTTP POST binding.
+//
+//	RelayState is handled by the server.
+//
+// See: https://docs.oasis-open.org/security/saml/v2.0/saml-bindings-2.0-os.pdf
+// "3.5 HTTP POST Binding"
+type SAMLConnector interface {
+	// POSTData returns an encoded SAML request and SSO URL for the server to
+	// render a POST form with.
+	//
+	// POSTData should encode the provided request ID in the returned serialized
+	// SAML request.
+	POSTData(s Scopes, requestID string) (ssoURL, samlRequest string, err error)
+
+	// HandlePOST decodes, verifies, and maps attributes from the SAML response.
+	// It passes the expected value of the "InResponseTo" response field, which
+	// the connector must ensure matches the response value.
+	//
+	// See: https://www.oasis-open.org/committees/download.php/35711/sstc-saml-core-errata-2.0-wd-06-diff.pdf
+	// "3.2.2 Complex Type StatusResponseType"
+	HandlePOST(s Scopes, samlResponse, inResponseTo string) (identity Identity, err error)
+}
+
+// RefreshConnector is a connector that can update the client claims.
+type RefreshConnector interface {
+	// Refresh is called when a client attempts to claim a refresh token. The
+	// connector should attempt to update the identity object to reflect any
+	// changes since the token was last refreshed.
+	Refresh(ctx context.Context, s Scopes, identity Identity) (Identity, error)
+}
+
+type TokenIdentityConnector interface {
+	TokenIdentity(ctx context.Context, subjectTokenType, subjectToken string) (Identity, error)
+}
+
+// LogoutCallbackConnector is a connector that can initiate upstream logout and
+// optionally validate the upstream provider's logout response.
+// Connectors that implement this interface support RP-Initiated Logout by
+// returning a URL that Dex should redirect the user to in order to terminate
+// the upstream session.
+type LogoutCallbackConnector interface {
+	// LogoutURL returns the upstream provider's logout URL.
+	// connectorData is the data stored during the user's authentication session.
+	// postLogoutRedirectURI is the URL the upstream provider should redirect back to after logout.
+	// Returns the upstream logout URL or empty string if upstream logout is not available.
+	LogoutURL(ctx context.Context, connectorData []byte, postLogoutRedirectURI string) (string, error)
+
+	// HandleLogoutCallback validates the upstream provider's logout response
+	// received in the callback request. For example, SAML connectors should
+	// verify the LogoutResponse signature and status code here.
+	// Connectors that don't receive a structured response (e.g. OIDC) should
+	// return nil.
+	HandleLogoutCallback(ctx context.Context, r *http.Request) error
+}
