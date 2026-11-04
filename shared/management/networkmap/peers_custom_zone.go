@@ -2,10 +2,10 @@ package networkmap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
 
@@ -19,7 +19,7 @@ const peersZoneRecordTTL = 300
 // single source of the zone-record logic; Account.GetPeersCustomZone delegates
 // here via twins.
 func PeersCustomZone(ctx context.Context, accountID string, dnsDomain string, peers map[string]*nmdata.Peer, ipv6AllowedPeers map[string]struct{}) nmdata.CustomZone {
-	var merr *multierror.Error
+	var merr []error
 
 	if dnsDomain == "" {
 		log.WithContext(ctx).Error("no dns domain is set, returning empty zone")
@@ -39,7 +39,7 @@ func PeersCustomZone(ctx context.Context, accountID string, dnsDomain string, pe
 			continue
 		}
 		if peer.DNSLabel == "" {
-			merr = multierror.Append(merr, fmt.Errorf("peer %s has an empty DNS label", peer.ID))
+			merr = append(merr, fmt.Errorf("peer %s has an empty DNS label", peer.ID))
 			continue
 		}
 
@@ -102,8 +102,8 @@ func PeersCustomZone(ctx context.Context, accountID string, dnsDomain string, pe
 	}
 
 	go func() {
-		if merr != nil {
-			log.WithContext(ctx).Errorf("error generating custom zone for account %s: %v", accountID, merr)
+		if len(merr) > 0 {
+			log.WithContext(ctx).Errorf("error generating custom zone for account %s: %v", accountID, errors.Join(merr...))
 		}
 	}()
 
