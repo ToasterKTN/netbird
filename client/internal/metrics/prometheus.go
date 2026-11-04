@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/netbirdio/netbird/client/internal/metrics/promtext"
 )
 
 // prometheusMetrics mirrors recorded client metrics into a Prometheus
@@ -16,50 +16,45 @@ import (
 // implementation. Export and Reset pass through untouched: Prometheus
 // metrics are cumulative and pull-based.
 type prometheusMetrics struct {
-	next     metricsImplementation
-	registry *prometheus.Registry
+	next metricsImplementation
 
-	connectionStages  *prometheus.HistogramVec
-	syncDuration      prometheus.Histogram
-	syncPhaseDuration *prometheus.HistogramVec
-	loginDuration     *prometheus.HistogramVec
+	connectionStages  *promtext.HistogramVec
+	syncDuration      *promtext.HistogramVec
+	syncPhaseDuration *promtext.HistogramVec
+	loginDuration     *promtext.HistogramVec
 }
 
 func newPrometheusMetrics(next metricsImplementation) *prometheusMetrics {
 	connectionBuckets := []float64{.05, .1, .25, .5, 1, 2.5, 5, 10, 30, 60}
 
-	m := &prometheusMetrics{
-		next:     next,
-		registry: prometheus.NewRegistry(),
-		connectionStages: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Name:    "netbird_peer_connection_stage_duration_seconds",
-			Help:    "Duration of peer connection establishment stages.",
-			Buckets: connectionBuckets,
-		}, []string{"stage", "connection_type", "attempt_type"}),
-		syncDuration: prometheus.NewHistogram(prometheus.HistogramOpts{
-			Name:    "netbird_sync_duration_seconds",
-			Help:    "Duration of management sync message processing.",
-			Buckets: prometheus.DefBuckets,
-		}),
-		syncPhaseDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Name:    "netbird_sync_phase_duration_seconds",
-			Help:    "Duration of individual sync processing phases.",
-			Buckets: prometheus.DefBuckets,
-		}, []string{"phase"}),
-		loginDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Name:    "netbird_login_duration_seconds",
-			Help:    "Duration of logins to the management service.",
-			Buckets: prometheus.DefBuckets,
-		}, []string{"success"}),
+	return &prometheusMetrics{
+		next: next,
+		connectionStages: promtext.NewHistogramVec(
+			"netbird_peer_connection_stage_duration_seconds",
+			"Duration of peer connection establishment stages.",
+			connectionBuckets, "stage", "connection_type", "attempt_type",
+		),
+		syncDuration: promtext.NewHistogramVec(
+			"netbird_sync_duration_seconds",
+			"Duration of management sync message processing.",
+			promtext.DefBuckets,
+		),
+		syncPhaseDuration: promtext.NewHistogramVec(
+			"netbird_sync_phase_duration_seconds",
+			"Duration of individual sync processing phases.",
+			promtext.DefBuckets, "phase",
+		),
+		loginDuration: promtext.NewHistogramVec(
+			"netbird_login_duration_seconds",
+			"Duration of logins to the management service.",
+			promtext.DefBuckets, "success",
+		),
 	}
-
-	m.registry.MustRegister(m.connectionStages, m.syncDuration, m.syncPhaseDuration, m.loginDuration)
-	return m
 }
 
-// Gatherer returns the registry holding the mirrored metrics.
-func (m *prometheusMetrics) Gatherer() prometheus.Gatherer {
-	return m.registry
+// Gatherer returns the mirrored metrics.
+func (m *prometheusMetrics) Gatherer() promtext.Gatherer {
+	return promtext.Gatherers{m.connectionStages, m.syncDuration, m.syncPhaseDuration, m.loginDuration}
 }
 
 // RecordConnectionStages implements metricsImplementation.
@@ -90,7 +85,7 @@ func (m *prometheusMetrics) RecordConnectionStages(
 
 // RecordSyncDuration implements metricsImplementation.
 func (m *prometheusMetrics) RecordSyncDuration(ctx context.Context, agentInfo AgentInfo, duration time.Duration) {
-	m.syncDuration.Observe(duration.Seconds())
+	m.syncDuration.WithLabelValues().Observe(duration.Seconds())
 	m.next.RecordSyncDuration(ctx, agentInfo, duration)
 }
 
@@ -107,7 +102,7 @@ func (m *prometheusMetrics) RecordLoginDuration(ctx context.Context, agentInfo A
 }
 
 // Export implements metricsImplementation by delegating to the wrapped
-// implementation; Prometheus metrics are pulled via the registry instead.
+// implementation; Prometheus metrics are pulled via Gatherer instead.
 func (m *prometheusMetrics) Export(w io.Writer) error {
 	return m.next.Export(w)
 }
