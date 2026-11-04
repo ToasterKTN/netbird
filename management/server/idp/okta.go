@@ -1,3 +1,5 @@
+//go:build idp_okta
+
 package idp
 
 import (
@@ -20,14 +22,6 @@ type OktaManager struct {
 	credentials ManagerCredentials
 	helper      ManagerHelper
 	appMetrics  telemetry.AppMetrics
-}
-
-// OktaClientConfig okta manager client configurations.
-type OktaClientConfig struct {
-	APIToken      string
-	Issuer        string
-	TokenEndpoint string
-	GrantType     string
 }
 
 // OktaCredentials okta authentication information.
@@ -296,4 +290,8 @@ func parseOktaUser(user *okta.User) (*UserData, error) {
 		Name:  strings.Join([]string{oktaUser.FirstName, oktaUser.LastName}, " "),
 		ID:    user.Id,
 	}, nil
+}
+
+func newOktaManager(config OktaClientConfig, appMetrics telemetry.AppMetrics) (Manager, error) {
+	return NewOktaManager(config, appMetrics)
 }

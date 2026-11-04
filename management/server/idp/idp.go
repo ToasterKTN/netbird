@@ -174,7 +174,7 @@ func NewManager(ctx context.Context, config Config, appMetrics telemetry.AppMetr
 
 		return NewZitadelManager(*zitadelClientConfig, appMetrics)
 	case "authentik":
-		return NewAuthentikManager(AuthentikClientConfig{
+		return newAuthentikManager(AuthentikClientConfig{
 			Issuer:        config.ClientConfig.Issuer,
 			ClientID:      config.ClientConfig.ClientID,
 			TokenEndpoint: config.ClientConfig.TokenEndpoint,
@@ -183,14 +183,14 @@ func NewManager(ctx context.Context, config Config, appMetrics telemetry.AppMetr
 			Password:      config.ExtraConfig["Password"],
 		}, appMetrics)
 	case "okta":
-		return NewOktaManager(OktaClientConfig{
+		return newOktaManager(OktaClientConfig{
 			Issuer:        config.ClientConfig.Issuer,
 			TokenEndpoint: config.ClientConfig.TokenEndpoint,
 			GrantType:     config.ClientConfig.GrantType,
 			APIToken:      config.ExtraConfig["ApiToken"],
 		}, appMetrics)
 	case "google":
-		return NewGoogleWorkspaceManager(ctx, GoogleWorkspaceClientConfig{
+		return newGoogleManager(ctx, GoogleWorkspaceClientConfig{
 			ServiceAccountKey: config.ExtraConfig["ServiceAccountKey"],
 			CustomerID:        config.ExtraConfig["CustomerId"],
 		}, appMetrics)
