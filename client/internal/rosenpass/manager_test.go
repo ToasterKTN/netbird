@@ -1,3 +1,5 @@
+//go:build rosenpass
+
 package rosenpass
 
 import (

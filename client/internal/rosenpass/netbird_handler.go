@@ -1,3 +1,5 @@
+//go:build rosenpass
+
 package rosenpass
 
 import (
@@ -8,12 +10,6 @@ import (
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
-
-// PresharedKeySetter is the interface for setting preshared keys on WireGuard peers.
-// This minimal interface allows rosenpass to update PSKs without depending on the full WGIface.
-type PresharedKeySetter interface {
-	SetPresharedKey(peerKey string, psk wgtypes.Key, updateOnly bool) error
-}
 
 type wireGuardPeer struct {
 	Interface string
