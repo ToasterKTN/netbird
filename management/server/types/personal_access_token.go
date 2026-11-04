@@ -7,7 +7,6 @@ import (
 	"hash/crc32"
 	"time"
 
-	b "github.com/hashicorp/go-secure-stdlib/base62"
 	"github.com/netbirdio/netbird/management/server/util"
 	"github.com/rs/xid"
 
@@ -99,7 +98,7 @@ func CreateNewPAT(name string, expirationInDays int, targetID, createdBy string)
 }
 
 func generateNewToken() (string, string, error) {
-	secret, err := b.Random(PATSecretLength)
+	secret, err := base62.Random(PATSecretLength)
 	if err != nil {
 		return "", "", err
 	}

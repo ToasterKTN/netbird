@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	b "github.com/hashicorp/go-secure-stdlib/base62"
 	"github.com/rs/xid"
 
 	"github.com/netbirdio/netbird/base62"
@@ -52,7 +51,7 @@ func (UserInviteRecord) TableName() string {
 // GenerateInviteToken creates a new invite token with the format: nbi_<secret><checksum>
 // Returns the hashed token (for storage) and the plain token (to give to the user)
 func GenerateInviteToken() (hashedToken string, plainToken string, err error) {
-	secret, err := b.Random(InviteTokenSecretLength)
+	secret, err := base62.Random(InviteTokenSecretLength)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate random secret: %w", err)
 	}

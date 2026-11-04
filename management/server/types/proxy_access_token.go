@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	b "github.com/hashicorp/go-secure-stdlib/base62"
 	"github.com/rs/xid"
 
 	"github.com/netbirdio/netbird/base62"
@@ -98,7 +97,7 @@ func CreateNewProxyAccessToken(name string, expiresIn time.Duration, accountID *
 // hash (for storage) and the one-time plaintext. Exported so external modules
 // can mint tokens in the canonical proxy-token format.
 func GenerateProxyToken() (HashedProxyToken, PlainProxyToken, error) {
-	secret, err := b.Random(ProxyTokenSecretLength)
+	secret, err := base62.Random(ProxyTokenSecretLength)
 	if err != nil {
 		return "", "", err
 	}
