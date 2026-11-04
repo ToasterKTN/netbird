@@ -1,13 +1,14 @@
 package server
 
 import (
-	"fmt"
-	"io"
+	"errors"
 
 	"github.com/gliderlabs/ssh"
-	"github.com/pkg/sftp"
 	log "github.com/sirupsen/logrus"
 )
+
+// ErrSFTPNotCompiled is returned when SFTP is used in a build without the sftp tag.
+var ErrSFTPNotCompiled = errors.New("SFTP support not compiled in, rebuild with -tags sftp")
 
 // SetAllowSFTP enables or disables SFTP support
 func (s *Server) SetAllowSFTP(allow bool) {
@@ -33,6 +34,11 @@ func (s *Server) sftpSubsystemHandler(sess ssh.Session) {
 	s.mu.RLock()
 	allowSFTP := s.allowSFTP
 	s.mu.RUnlock()
+
+	if allowSFTP && !SFTPCompiled {
+		logger.Warn("SFTP subsystem request denied: " + ErrSFTPNotCompiled.Error())
+		allowSFTP = false
+	}
 
 	if !allowSFTP {
 		logger.Debug("SFTP subsystem request denied: SFTP disabled")
@@ -70,20 +76,5 @@ func (s *Server) sftpSubsystemHandler(sess ssh.Session) {
 
 // executeSftpDirect executes SFTP directly without privilege dropping
 func (s *Server) executeSftpDirect(sess ssh.Session) error {
-	sftpServer, err := sftp.NewServer(sess)
-	if err != nil {
-		return fmt.Errorf("SFTP server creation: %w", err)
-	}
-
-	defer func() {
-		if err := sftpServer.Close(); err != nil {
-			log.Debugf("failed to close sftp server: %v", err)
-		}
-	}()
-
-	if err := sftpServer.Serve(); err != nil && err != io.EOF {
-		return fmt.Errorf("serve: %w", err)
-	}
-
-	return nil
+	return ServeSFTP(sess)
 }

@@ -1,3 +1,5 @@
+//go:build sftp
+
 package server
 
 import (

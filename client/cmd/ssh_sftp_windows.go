@@ -3,14 +3,11 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/user"
 	"strings"
 
-	"github.com/pkg/sftp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -66,29 +63,11 @@ func sftpMainDirect(cmd *cobra.Command) error {
 		}
 	}
 
-	sftpServer, err := sftp.NewServer(struct {
-		io.Reader
-		io.WriteCloser
-	}{
-		Reader:      os.Stdin,
-		WriteCloser: os.Stdout,
-	})
-	if err != nil {
-		cmd.PrintErrf("SFTP server creation failed: %v\n", err)
+	log.Tracef("starting SFTP server")
+	if err := sshserver.ServeSFTP(stdio{Reader: os.Stdin, WriteCloser: os.Stdout}); err != nil {
+		cmd.PrintErrf("SFTP server error: %v\n", err)
 		os.Exit(sshserver.ExitCodeShellExecFail)
 	}
-
-	log.Debugf("starting SFTP server")
-	exitCode := sshserver.ExitCodeSuccess
-	if err := sftpServer.Serve(); err != nil && !errors.Is(err, io.EOF) {
-		cmd.PrintErrf("SFTP server error: %v\n", err)
-		exitCode = sshserver.ExitCodeShellExecFail
-	}
-
-	if err := sftpServer.Close(); err != nil {
-		log.Debugf("SFTP server close error: %v", err)
-	}
-
-	os.Exit(exitCode)
+	os.Exit(sshserver.ExitCodeSuccess)
 	return nil
 }
