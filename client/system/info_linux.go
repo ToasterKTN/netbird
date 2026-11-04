@@ -5,14 +5,15 @@ package system
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"time"
 
 	"golang.org/x/sys/unix"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/zcalusic/sysinfo"
 
 	"github.com/netbirdio/netbird/version"
 )
@@ -112,14 +113,37 @@ func sysInfo() (string, string, string) {
 }
 
 func defaultSysInfoImplementation() SysInfo {
-	si := sysinfo.SysInfo{}
-	si.GetSysInfo()
-	return SysInfo{
-		ChassisSerial: si.Chassis.Serial,
-		ProductSerial: si.Product.Serial,
-		BoardSerial:   si.Board.Serial,
-		ProductName:   si.Product.Name,
-		BoardName:     si.Board.Name,
-		ProductVendor: si.Product.Vendor,
+	return readSysInfo(dmiReader("/sys/class/dmi/id", "/proc/device-tree"))
+}
+
+// dmiReader returns a reader for DMI attribute files, falling back to the
+// device tree (ARM boards without DMI) for the product name and serial.
+func dmiReader(dmiDir, deviceTreeDir string) func(dmiName, dtName string) string {
+	return func(dmiName, dtName string) string {
+		if v := readTrimmed(filepath.Join(dmiDir, dmiName)); v != "" || dtName == "" {
+			return v
+		}
+		return readTrimmed(filepath.Join(deviceTreeDir, dtName))
 	}
+}
+
+func readSysInfo(read func(dmiName, dtName string) string) SysInfo {
+	return SysInfo{
+		ChassisSerial: read("chassis_serial", ""),
+		ProductSerial: read("product_serial", "serial-number"),
+		BoardSerial:   read("board_serial", ""),
+		ProductName:   read("product_name", "model"),
+		BoardName:     read("board_name", ""),
+		ProductVendor: read("sys_vendor", ""),
+	}
+}
+
+// readTrimmed returns the file content without surrounding whitespace, NUL or
+// U+FFFF, or "" when it cannot be read (e.g. root-only serial files).
+func readTrimmed(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.Trim(string(data), " \r\n\t\u0000\uffff")
 }
