@@ -344,11 +344,9 @@ func TestApplyMDMPolicyRemoteJobs(t *testing.T) {
 }
 
 func TestUpdateOldManagementURL(t *testing.T) {
-	origProber := newMgmProber
-	newMgmProber = func(_ context.Context, _ string, _ wgtypes.Key, _ bool) (mgmProber, error) {
+	newMgmProber := func(_ context.Context, _ string, _ wgtypes.Key, _ bool) (MgmProber, error) {
 		return &mockMgmProber{}, nil
 	}
-	t.Cleanup(func() { newMgmProber = origProber })
 
 	tests := []struct {
 		name                  string
@@ -391,7 +389,7 @@ func TestUpdateOldManagementURL(t *testing.T) {
 			require.NoError(t, err, "failed to create testing config")
 			previousContent, err := os.ReadFile(configPath)
 			require.NoError(t, err, "failed to read initial config")
-			resultConfig, err := UpdateOldManagementURL(context.TODO(), config, configPath)
+			resultConfig, err := UpdateOldManagementURL(context.TODO(), config, configPath, newMgmProber)
 			require.NoError(t, err, "got error when updating old management url")
 			require.Equal(t, tt.expectedManagementURL, resultConfig.ManagementURL.String())
 			newContent, err := os.ReadFile(configPath)

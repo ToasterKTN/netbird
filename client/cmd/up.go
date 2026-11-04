@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
 
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	gstatus "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/netbirdio/netbird/client/server"
 	"github.com/netbirdio/netbird/client/system"
 	"github.com/netbirdio/netbird/shared/externalipmap"
+	mgm "github.com/netbirdio/netbird/shared/management/client"
 	"github.com/netbirdio/netbird/shared/management/domain"
 	"github.com/netbirdio/netbird/util"
 )
@@ -234,7 +236,9 @@ func runInForegroundMode(ctx context.Context, cmd *cobra.Command, activeProf *pr
 	// other managed key actually takes effect on this run.
 	config.ApplyMDMPolicy(mdm.NewLoader(nil).Load())
 
-	_, _ = profilemanager.UpdateOldManagementURL(ctx, config, configFilePath)
+	_, _ = profilemanager.UpdateOldManagementURL(ctx, config, configFilePath, func(ctx context.Context, addr string, key wgtypes.Key, tlsEnabled bool) (profilemanager.MgmProber, error) {
+		return mgm.NewClient(ctx, addr, key, tlsEnabled)
+	})
 
 	// Restore residual state left by a previous run that did not shut down
 	// cleanly, mirroring what the daemon does before connecting: it recovers

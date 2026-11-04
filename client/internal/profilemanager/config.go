@@ -2,8 +2,12 @@ package profilemanager
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"net/url"
@@ -21,8 +25,6 @@ import (
 
 	"github.com/netbirdio/netbird/client/internal/defaults"
 	"github.com/netbirdio/netbird/client/mdm"
-	"github.com/netbirdio/netbird/client/ssh"
-	mgm "github.com/netbirdio/netbird/shared/management/client"
 	"github.com/netbirdio/netbird/shared/management/domain"
 	"github.com/netbirdio/netbird/util"
 )
@@ -40,17 +42,17 @@ const (
 	DefaultAdminURL = "https://app.netbird.io:443"
 )
 
-// mgmProber is the subset of management client needed for URL migration probes.
-type mgmProber interface {
+// MgmProber is the subset of management client needed for URL migration probes.
+type MgmProber interface {
 	HealthCheck() error
 	Close() error
 }
 
-// newMgmProber creates a management client for probing URL reachability.
-// Overridden in tests to avoid real network calls.
-var newMgmProber = func(ctx context.Context, addr string, key wgtypes.Key, tlsEnabled bool) (mgmProber, error) {
-	return mgm.NewClient(ctx, addr, key, tlsEnabled)
-}
+// MgmProberFactory creates a management client for probing URL reachability.
+// It is injected by the caller so this package does not depend on the
+// management gRPC client (and the engine stack behind it), keeping it light
+// enough for the UI.
+type MgmProberFactory func(ctx context.Context, addr string, key wgtypes.Key, tlsEnabled bool) (MgmProber, error)
 
 var DefaultInterfaceBlacklist = []string{
 	defaults.WgInterfaceDefault, "wt", "utun", "tun0", "zt", "ZeroTier", "wg", "ts",
@@ -452,11 +454,11 @@ func (config *Config) EnsureIdentity() (bool, error) {
 
 	if config.SSHKey == "" {
 		log.Infof("generated new SSH key")
-		pem, err := ssh.GeneratePrivateKey(ssh.ED25519)
+		keyPEM, err := generateSSHKey()
 		if err != nil {
 			return generated, err
 		}
-		config.SSHKey = string(pem)
+		config.SSHKey = string(keyPEM)
 		generated = true
 	}
 
@@ -1219,7 +1221,7 @@ func GetExistingConfig(configPath string) (*Config, error) {
 // UpdateOldManagementURL checks whether client can switch to the new Management URL with port 443 and the management domain.
 // If it can switch, then it updates the config and returns a new one. Otherwise, it returns the provided config.
 // The check is performed only for the NetBird's managed version.
-func UpdateOldManagementURL(ctx context.Context, config *Config, configPath string) (*Config, error) {
+func UpdateOldManagementURL(ctx context.Context, config *Config, configPath string, newMgmProber MgmProberFactory) (*Config, error) {
 	defaultManagementURL, err := parseURL("Management URL", DefaultManagementURL)
 	if err != nil {
 		return nil, err
@@ -1264,6 +1266,9 @@ func UpdateOldManagementURL(ctx context.Context, config *Config, configPath stri
 		return config, err
 	}
 
+	if newMgmProber == nil {
+		return config, fmt.Errorf("no management prober provided")
+	}
 	client, err := newMgmProber(ctx, newURL.Host, key, mgmTlsEnabled)
 	if err != nil {
 		log.Infof("couldn't switch to the new Management %s", newURL.String())
@@ -1449,4 +1454,18 @@ func ConfigFromJSON(jsonStr string) (*Config, error) {
 	}
 
 	return config, nil
+}
+
+// generateSSHKey creates a PKCS#8 PEM encoded ED25519 private key, the same
+// format client/ssh.GeneratePrivateKey(ssh.ED25519) produces.
+func generateSSHKey() ([]byte, error) {
+	_, key, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}), nil
 }
