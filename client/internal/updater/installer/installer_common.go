@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
 	goversion "github.com/hashicorp/go-version"
+	nberrors "github.com/netbirdio/netbird/client/errors"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/netbirdio/netbird/client/internal/updater/downloader"
@@ -150,10 +150,10 @@ func (u *Installer) CleanUpInstallerFiles() error {
 		return nil
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if err := removeUpdaterBinary(filepath.Join(u.tempDir, updaterBinary)); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("remove updater binary: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("remove updater binary: %w", err))
 	}
 
 	entries, err := os.ReadDir(u.tempDir)
@@ -176,7 +176,7 @@ func (u *Installer) CleanUpInstallerFiles() error {
 		for _, ext := range binaryExtensions {
 			if strings.HasSuffix(strings.ToLower(name), strings.ToLower(ext)) {
 				if err := os.Remove(filepath.Join(u.tempDir, name)); err != nil {
-					merr = multierror.Append(merr, fmt.Errorf("remove %s: %w", name, err))
+					merr = nberrors.Append(merr, fmt.Errorf("remove %s: %w", name, err))
 				}
 				break
 			}

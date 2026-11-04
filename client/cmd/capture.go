@@ -10,7 +10,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -168,19 +167,19 @@ func captureOutput(cmd *cobra.Command) (io.Writer, func() error, error) {
 	}
 	tmpPath := f.Name()
 	return f, func() error {
-		var merr *multierror.Error
+		var merr *nberrors.Error
 		if err := f.Close(); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("close output file: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("close output file: %w", err))
 		}
 		fi, statErr := os.Stat(tmpPath)
 		if statErr != nil || fi.Size() == 0 {
 			if rmErr := os.Remove(tmpPath); rmErr != nil && !os.IsNotExist(rmErr) {
-				merr = multierror.Append(merr, fmt.Errorf("remove empty output file: %w", rmErr))
+				merr = nberrors.Append(merr, fmt.Errorf("remove empty output file: %w", rmErr))
 			}
 			return nberrors.FormatErrorOrNil(merr)
 		}
 		if err := os.Rename(tmpPath, outPath); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("rename output file: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("rename output file: %w", err))
 			return nberrors.FormatErrorOrNil(merr)
 		}
 		cmd.PrintErrf("Wrote %s\n", outPath)

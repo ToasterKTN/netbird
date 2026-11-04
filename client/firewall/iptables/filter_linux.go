@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -95,14 +94,14 @@ func (r *family) DeleteFilterRule(rule firewall.Rule) error {
 
 	// DeleteIfExists keeps the deletes idempotent so a retry after a
 	// partial failure does not error on the parts already removed.
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, fs := range pr.allSpecs() {
 		if err := r.iptablesClient.DeleteIfExists(tableFilter, pr.chain, fs.specs...); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("delete rule from %s: %w", pr.chain, err))
+			merr = nberrors.Append(merr, fmt.Errorf("delete rule from %s: %w", pr.chain, err))
 		}
 		if fs.mangleSpecs != nil {
 			if err := r.iptablesClient.DeleteIfExists(tableMangle, chainRTPre, fs.mangleSpecs...); err != nil {
-				merr = multierror.Append(merr, fmt.Errorf("delete mangle rule: %w", err))
+				merr = nberrors.Append(merr, fmt.Errorf("delete mangle rule: %w", err))
 			}
 		}
 	}
@@ -217,10 +216,10 @@ func (r *family) decrementSetCounter(rule []string) error {
 	if r.ipsetCounter == nil {
 		return nil
 	}
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, name := range findSets(rule) {
 		if _, err := r.ipsetCounter.Decrement(name); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("decrement counter: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("decrement counter: %w", err))
 		}
 	}
 	return nberrors.FormatErrorOrNil(merr)

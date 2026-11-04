@@ -9,7 +9,6 @@ import (
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
@@ -434,7 +433,7 @@ func (r *family) RemoveAllLegacyRouteRules() error {
 		return fmt.Errorf(refreshRulesMapError, err)
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	var found bool
 	for k, rule := range r.rules {
 		if !strings.HasPrefix(string(k), firewall.ForwardingFormatPrefix) {
@@ -442,7 +441,7 @@ func (r *family) RemoveAllLegacyRouteRules() error {
 		}
 		found = true
 		if err := r.deleteLegacyRuleEntry(k, rule); err != nil {
-			merr = multierror.Append(merr, err)
+			merr = nberrors.Append(merr, err)
 		}
 	}
 
@@ -452,7 +451,7 @@ func (r *family) RemoveAllLegacyRouteRules() error {
 	// find again.
 	if found {
 		if err := r.conn.Flush(); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf(flushError, err))
+			merr = nberrors.Append(merr, fmt.Errorf(flushError, err))
 		}
 	}
 
@@ -464,26 +463,26 @@ func (r *family) RemoveNatRule(pair firewall.RouterPair) error {
 		return fmt.Errorf(refreshRulesMapError, err)
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if pair.Masquerade {
 		if err := r.removeNatRule(pair); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove prerouting rule: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove prerouting rule: %w", err))
 		}
 
 		if err := r.removeNatRule(firewall.GetInversePair(pair)); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove inverse prerouting rule: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove inverse prerouting rule: %w", err))
 		}
 	}
 
 	if err := r.removeLegacyRouteRule(pair); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("remove legacy routing rule: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("remove legacy routing rule: %w", err))
 	}
 
 	// Set counters are decremented in the sub-methods above before flush. If flush fails,
 	// counters will be off until the next successful removal or refresh cycle.
 	if err := r.conn.Flush(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("flush remove nat rules %s: %w", pair.Destination, err))
+		merr = nberrors.Append(merr, fmt.Errorf("flush remove nat rules %s: %w", pair.Destination, err))
 	}
 
 	return nberrors.FormatErrorOrNil(merr)

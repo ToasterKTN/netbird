@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
 
@@ -90,9 +89,9 @@ func (m *DefaultManager) selectRoutes(ids []route.NetID, appendRoute bool) error
 
 	// A partial failure (e.g. an unknown ID in the request) still selects the
 	// valid routes, so exclusivity below must run regardless of the error.
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	if err := m.routeSelector.SelectRoutes(routes, appendRoute, allIDs); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("select routes: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("select routes: %w", err))
 	}
 
 	// Exit nodes are mutually exclusive: if this selection activates an
@@ -101,7 +100,7 @@ func (m *DefaultManager) selectRoutes(ids []route.NetID, appendRoute bool) error
 	if requestActivatesExitNode(routes, routesMap) {
 		if others := otherExitNodeIDs(routesMap, routes); len(others) > 0 {
 			if err := m.routeSelector.DeselectRoutes(others, allIDs); err != nil {
-				merr = multierror.Append(merr, fmt.Errorf("deselect sibling exit nodes: %w", err))
+				merr = nberrors.Append(merr, fmt.Errorf("deselect sibling exit nodes: %w", err))
 			}
 		}
 	}

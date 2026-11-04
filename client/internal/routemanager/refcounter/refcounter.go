@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -103,11 +102,11 @@ func (rm *Counter[Key, I, O]) ReapplyMatching(pred func(out O) bool, apply func(
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for key, ref := range rm.refCountMap {
 		if pred(ref.Out) {
 			if err := apply(key); err != nil {
-				merr = multierror.Append(merr, err)
+				merr = nberrors.Append(merr, err)
 			}
 		}
 	}
@@ -198,10 +197,10 @@ func (rm *Counter[Key, I, O]) DecrementWithID(id string) error {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, key := range rm.idMap[id] {
 		if _, err := rm.decrement(key); err != nil {
-			merr = multierror.Append(merr, err)
+			merr = nberrors.Append(merr, err)
 		}
 	}
 	delete(rm.idMap, id)
@@ -214,12 +213,12 @@ func (rm *Counter[Key, I, O]) Flush() error {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for key := range rm.refCountMap {
 		logCallerF("Calling remove for key %v", key)
 		ref := rm.refCountMap[key]
 		if err := rm.remove(key, ref.Out); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove for key %v: %w", key, err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove for key %v: %w", key, err))
 		}
 	}
 

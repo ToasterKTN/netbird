@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/coreos/go-iptables/iptables"
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -57,13 +56,13 @@ func NewInterfaceAllower(wgIface iFaceMapper) (*InterfaceAllower, error) {
 // any stale rule first so an unclean exit (e.g. SIGKILL, where Close never ran)
 // is recovered deterministically rather than accumulating duplicates.
 func (a *InterfaceAllower) Apply() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, ipt := range a.clients() {
 		if err := ipt.DeleteIfExists(tableFilter, chainInput, a.inputRule()...); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("clean stale interface accept rule: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("clean stale interface accept rule: %w", err))
 		}
 		if err := ipt.Insert(tableFilter, chainInput, 1, a.inputRule()...); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("add interface accept rule: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("add interface accept rule: %w", err))
 		}
 	}
 	return nberrors.FormatErrorOrNil(merr)
@@ -71,10 +70,10 @@ func (a *InterfaceAllower) Apply() error {
 
 // Close removes the interface accept rule.
 func (a *InterfaceAllower) Close() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, ipt := range a.clients() {
 		if err := ipt.DeleteIfExists(tableFilter, chainInput, a.inputRule()...); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove interface accept rule: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove interface accept rule: %w", err))
 		}
 	}
 	return nberrors.FormatErrorOrNil(merr)

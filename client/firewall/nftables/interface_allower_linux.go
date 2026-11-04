@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/google/nftables"
-	"github.com/hashicorp/go-multierror"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
 )
@@ -55,16 +54,16 @@ func NewInterfaceAllower(wgIface iFaceMapper, mtu uint16) (*InterfaceAllower, er
 // Apply opens the interface (INPUT only) in the foreign filter chains and starts
 // reconciling them on nftables changes.
 func (a *InterfaceAllower) Apply() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, f := range a.families() {
 		// Remove any stale accepts first so a prior unclean exit (e.g. SIGKILL,
 		// where Close never ran) is recovered deterministically rather than
 		// accumulating duplicate rules on the iptables filter table.
 		if err := f.removeAcceptFilterRules(); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("clean stale accept rules: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("clean stale accept rules: %w", err))
 		}
 		if err := f.openInterface(false); err != nil {
-			merr = multierror.Append(merr, err)
+			merr = nberrors.Append(merr, err)
 		}
 	}
 
@@ -84,10 +83,10 @@ func (a *InterfaceAllower) families() []*family {
 // reconcileExternalChains re-applies the INPUT accepts to external chains. It
 // implements externalChainReconciler for the monitor.
 func (a *InterfaceAllower) reconcileExternalChains() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, f := range a.families() {
 		if err := f.acceptExternalChainsRules(false); err != nil {
-			merr = multierror.Append(merr, err)
+			merr = nberrors.Append(merr, err)
 		}
 	}
 	return nberrors.FormatErrorOrNil(merr)
@@ -97,10 +96,10 @@ func (a *InterfaceAllower) reconcileExternalChains() error {
 func (a *InterfaceAllower) Close() error {
 	a.extMonitor.stop()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, f := range a.families() {
 		if err := f.removeAcceptFilterRules(); err != nil {
-			merr = multierror.Append(merr, err)
+			merr = nberrors.Append(merr, err)
 		}
 	}
 	return nberrors.FormatErrorOrNil(merr)

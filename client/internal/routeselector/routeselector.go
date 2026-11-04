@@ -6,8 +6,6 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/hashicorp/go-multierror"
-
 	"github.com/netbirdio/netbird/client/errors"
 	"github.com/netbirdio/netbird/route"
 )
@@ -35,11 +33,11 @@ func (rs *RouteSelector) SelectRoutes(routes []route.NetID, appendRoute bool, al
 	// Validate before mutating: a non-append selection wipes the current selection
 	// first, so a request of only unavailable routes would deselect everything and
 	// put nothing back. An empty request means deselect all, so it still goes through.
-	var err *multierror.Error
+	var err *errors.Error
 	available := make([]route.NetID, 0, len(routes))
 	for _, r := range routes {
 		if !slices.Contains(allRoutes, r) {
-			err = multierror.Append(err, fmt.Errorf("route '%s' is not available", r))
+			err = errors.Append(err, fmt.Errorf("route '%s' is not available", r))
 			continue
 		}
 		available = append(available, r)
@@ -97,10 +95,10 @@ func (rs *RouteSelector) DeselectRoutes(routes []route.NetID, allRoutes []route.
 		return nil
 	}
 
-	var err *multierror.Error
+	var err *errors.Error
 	for _, route := range routes {
 		if !slices.Contains(allRoutes, route) {
-			err = multierror.Append(err, fmt.Errorf("route '%s' is not available", route))
+			err = errors.Append(err, fmt.Errorf("route '%s' is not available", route))
 			continue
 		}
 		rs.deselectedRoutes[route] = struct{}{}

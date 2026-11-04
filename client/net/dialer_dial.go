@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -70,16 +69,16 @@ func callDialerHooks(ctx context.Context, connID hooks.ConnectionID, address str
 
 	log.Debugf("Dialer resolved IPs for %s: %v", address, ips)
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, ip := range ips {
 		prefix, err := util.GetPrefixFromIP(ip.IP)
 		if err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("convert IP %s to prefix: %w", ip.IP, err))
+			merr = nberrors.Append(merr, fmt.Errorf("convert IP %s to prefix: %w", ip.IP, err))
 			continue
 		}
 		for _, hook := range writeHooks {
 			if err := hook(connID, prefix); err != nil {
-				merr = multierror.Append(merr, fmt.Errorf("executing dial hook for IP %s: %w", ip.IP, err))
+				merr = nberrors.Append(merr, fmt.Errorf("executing dial hook for IP %s: %w", ip.IP, err))
 			}
 		}
 	}

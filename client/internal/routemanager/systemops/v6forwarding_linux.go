@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -42,10 +41,10 @@ func EnableV6IPForwarding(wgIfaceName string) (map[string]int, error) {
 
 // DisableV6IPForwarding restores what EnableV6IPForwarding captured.
 func DisableV6IPForwarding(saved map[string]int) error {
-	var result *multierror.Error
+	var result *nberrors.Error
 	for key, value := range saved {
 		if _, err := sysctl.Set(key, value, false); err != nil {
-			result = multierror.Append(result, fmt.Errorf("restore %s: %w", key, err))
+			result = nberrors.Append(result, fmt.Errorf("restore %s: %w", key, err))
 		}
 	}
 	return nberrors.FormatErrorOrNil(result)

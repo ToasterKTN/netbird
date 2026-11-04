@@ -11,7 +11,6 @@ import (
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -287,10 +286,10 @@ func (r *family) decrementSetCounter(rule *nftables.Rule) error {
 	}
 	sets := findSets(rule)
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, setName := range sets {
 		if _, err := r.ipsetCounter.Decrement(setName); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("decrement set counter: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("decrement set counter: %w", err))
 		}
 	}
 

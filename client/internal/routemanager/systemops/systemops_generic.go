@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/libp2p/go-netroute"
 	log "github.com/sirupsen/logrus"
 
@@ -250,16 +249,16 @@ func (r *SysOps) genericRemoveVPNRoute(prefix netip.Prefix, intf *net.Interface)
 
 	switch prefix {
 	case vars.Defaultv4:
-		var result *multierror.Error
+		var result *nberrors.Error
 		if err := r.removeFromRouteTable(splitDefaultv4_1, nextHop); err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 		if err := r.removeFromRouteTable(splitDefaultv4_2, nextHop); err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 
 		if !r.wgInterface.Address().HasIPv6() {
-			result = multierror.Append(result, r.removeV6SplitDefault(nextHop))
+			result = nberrors.Append(result, r.removeV6SplitDefault(nextHop))
 		}
 
 		return nberrors.FormatErrorOrNil(result)
@@ -283,13 +282,13 @@ func (r *SysOps) addV6SplitDefault(nextHop Nexthop) error {
 	return nil
 }
 
-func (r *SysOps) removeV6SplitDefault(nextHop Nexthop) *multierror.Error {
-	var result *multierror.Error
+func (r *SysOps) removeV6SplitDefault(nextHop Nexthop) *nberrors.Error {
+	var result *nberrors.Error
 	if err := r.removeFromRouteTable(splitDefaultv6_1, nextHop); err != nil {
-		result = multierror.Append(result, err)
+		result = nberrors.Append(result, err)
 	}
 	if err := r.removeFromRouteTable(splitDefaultv6_2, nextHop); err != nil {
-		result = multierror.Append(result, err)
+		result = nberrors.Append(result, err)
 	}
 	return result
 }
@@ -314,16 +313,16 @@ func (r *SysOps) setupHooks(initAddresses []net.IP, stateManager *statemanager.M
 		return nil
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	for _, ip := range initAddresses {
 		prefix, err := util.GetPrefixFromIP(ip)
 		if err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("invalid IP address %s: %w", ip, err))
+			merr = nberrors.Append(merr, fmt.Errorf("invalid IP address %s: %w", ip, err))
 			continue
 		}
 		if err := beforeHook("init", prefix); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("add initial route for %s: %w", prefix, err))
+			merr = nberrors.Append(merr, fmt.Errorf("add initial route for %s: %w", prefix, err))
 		}
 	}
 

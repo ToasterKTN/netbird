@@ -7,7 +7,6 @@ import (
 	"net/netip"
 
 	"github.com/google/uuid"
-	"github.com/hashicorp/go-multierror"
 	"github.com/lrh3321/ipset-go"
 	log "github.com/sirupsen/logrus"
 
@@ -73,10 +72,10 @@ func (r *family) deleteIpSet(setName string) error {
 
 func (r *family) UpdateSet(set firewall.Set, prefixes []netip.Prefix) error {
 	name := r.ipsetName(set.HashedName())
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, prefix := range prefixes {
 		if err := r.addPrefixToIPSet(name, prefix); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("add prefix to ipset: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("add prefix to ipset: %w", err))
 		}
 	}
 	if merr == nil {

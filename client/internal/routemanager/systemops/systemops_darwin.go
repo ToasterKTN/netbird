@@ -9,7 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/route"
 	"golang.org/x/sys/unix"
@@ -51,13 +50,13 @@ func (r *SysOps) setupAdvancedRouting() error {
 		log.Warnf("flush residual scoped defaults: %v", err)
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	installed := 0
 
 	for _, unspec := range []netip.Addr{netip.IPv4Unspecified(), netip.IPv6Unspecified()} {
 		ok, err := r.installScopedDefaultFor(unspec)
 		if err != nil {
-			merr = multierror.Append(merr, err)
+			merr = nberrors.Append(merr, err)
 			continue
 		}
 		if ok {
@@ -143,7 +142,7 @@ func (r *SysOps) flushScopedDefaults() error {
 		return fmt.Errorf("parse routing table: %w", err)
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	removed := 0
 
 	for _, msg := range msgs {
@@ -168,7 +167,7 @@ func (r *SysOps) flushScopedDefaults() error {
 		}
 
 		if err := r.deleteScopedRoute(rtMsg); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("delete scoped default %s on index %d: %w",
+			merr = nberrors.Append(merr, fmt.Errorf("delete scoped default %s on index %d: %w",
 				info.Dst, rtMsg.Index, err))
 			continue
 		}

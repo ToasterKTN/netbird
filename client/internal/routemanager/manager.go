@@ -16,7 +16,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
 
@@ -358,7 +357,7 @@ func (m *DefaultManager) updateSystemRoutes(newRoutes route.HAMap) error {
 		}
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	// Begin batch mode to avoid calling applyHostConfig() after each DNS handler operation
 	batchStarted := false
@@ -378,7 +377,7 @@ func (m *DefaultManager) updateSystemRoutes(newRoutes route.HAMap) error {
 
 	for id, handler := range toRemove {
 		if err := handler.RemoveRoute(); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove route %s: %w", handler.String(), err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove route %s: %w", handler.String(), err))
 		}
 		delete(m.activeRoutes, id)
 	}
@@ -400,7 +399,7 @@ func (m *DefaultManager) updateSystemRoutes(newRoutes route.HAMap) error {
 		}
 		handler := client.HandlerFromRoute(params)
 		if err := handler.AddRoute(m.ctx); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("add route %s: %w", handler.String(), err))
+			merr = nberrors.Append(merr, fmt.Errorf("add route %s: %w", handler.String(), err))
 			continue
 		}
 		m.activeRoutes[id] = handler
@@ -427,7 +426,7 @@ func (m *DefaultManager) UpdateRoutes(
 	defer m.mux.Unlock()
 	m.useNewDNSRoute = useNewDNSRoute
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	if !m.disableClientRoutes {
 		if runtime.GOOS == "android" && useNewDNSRoute && m.fakeIPManager == nil {
 			m.enableFakeIPRoutes()
@@ -439,7 +438,7 @@ func (m *DefaultManager) UpdateRoutes(
 		filteredClientRoutes := m.routeSelector.FilterSelectedExitNodes(clientRoutes)
 
 		if err := m.updateSystemRoutes(filteredClientRoutes); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("update system routes: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("update system routes: %w", err))
 		}
 
 		m.updateClientNetworks(updateSerial, filteredClientRoutes)
@@ -457,7 +456,7 @@ func (m *DefaultManager) UpdateRoutes(
 	}
 
 	if err := m.serverRouter.UpdateRoutes(serverRoutes, useNewDNSRoute); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("update server routes: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("update server routes: %w", err))
 	}
 
 	return nberrors.FormatErrorOrNil(merr)

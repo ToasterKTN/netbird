@@ -10,7 +10,6 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/sys/unix"
@@ -187,22 +186,22 @@ func (p *Proxy) Free() error {
 		p.ctxCancel()
 	}
 
-	var result *multierror.Error
+	var result *nberrors.Error
 	if p.conn != nil {
 		if err := p.conn.Close(); err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 	}
 
 	if p.rawConnIPv4 != nil {
 		if err := p.rawConnIPv4.Close(); err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 	}
 
 	if p.rawConnIPv6 != nil {
 		if err := p.rawConnIPv6.Close(); err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 	}
 	return nberrors.FormatErrorOrNil(result)

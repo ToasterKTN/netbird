@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -94,15 +93,15 @@ func (d *DualStackPacketConn) WriteTo(b []byte, addr net.Addr) (n int, err error
 
 // Close closes both connections.
 func (d *DualStackPacketConn) Close() error {
-	var result *multierror.Error
+	var result *nberrors.Error
 	if d.ipv4Conn != nil {
 		if err := d.ipv4Conn.Close(); err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 	}
 	if d.ipv6Conn != nil {
 		if err := d.ipv6Conn.Close(); err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 	}
 	return nberrors.FormatErrorOrNil(result)
@@ -122,15 +121,15 @@ func (d *DualStackPacketConn) LocalAddr() net.Addr {
 
 // SetDeadline sets the deadline for both connections.
 func (d *DualStackPacketConn) SetDeadline(t time.Time) error {
-	var result *multierror.Error
+	var result *nberrors.Error
 	if d.ipv4Conn != nil {
 		if err := d.ipv4Conn.SetDeadline(t); err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 	}
 	if d.ipv6Conn != nil {
 		if err := d.ipv6Conn.SetDeadline(t); err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 	}
 	return nberrors.FormatErrorOrNil(result)
@@ -138,15 +137,15 @@ func (d *DualStackPacketConn) SetDeadline(t time.Time) error {
 
 // SetReadDeadline sets the read deadline for both connections.
 func (d *DualStackPacketConn) SetReadDeadline(t time.Time) error {
-	var result *multierror.Error
+	var result *nberrors.Error
 	if d.ipv4Conn != nil {
 		if err := d.ipv4Conn.SetReadDeadline(t); err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 	}
 	if d.ipv6Conn != nil {
 		if err := d.ipv6Conn.SetReadDeadline(t); err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 	}
 	return nberrors.FormatErrorOrNil(result)
@@ -154,15 +153,15 @@ func (d *DualStackPacketConn) SetReadDeadline(t time.Time) error {
 
 // SetWriteDeadline sets the write deadline for both connections.
 func (d *DualStackPacketConn) SetWriteDeadline(t time.Time) error {
-	var result *multierror.Error
+	var result *nberrors.Error
 	if d.ipv4Conn != nil {
 		if err := d.ipv4Conn.SetWriteDeadline(t); err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 	}
 	if d.ipv6Conn != nil {
 		if err := d.ipv6Conn.SetWriteDeadline(t); err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 	}
 	return nberrors.FormatErrorOrNil(result)

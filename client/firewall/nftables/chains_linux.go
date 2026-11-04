@@ -14,7 +14,6 @@ import (
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
@@ -181,14 +180,14 @@ func (r *family) setupDataPlaneMark() error {
 // INPUT is opened, which is all the userspace router needs since it never
 // forwards in the kernel.
 func (r *family) openInterface(includeForward bool) error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if err := r.acceptFilterTableRules(includeForward); err != nil {
-		merr = multierror.Append(merr, err)
+		merr = nberrors.Append(merr, err)
 	}
 
 	if err := r.acceptExternalChainsRules(includeForward); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("add accept rules to external chains: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("add accept rules to external chains: %w", err))
 	}
 
 	return nberrors.FormatErrorOrNil(merr)
@@ -224,12 +223,12 @@ func (r *family) acceptFilterTableRules(includeForward bool) error {
 }
 
 func (r *family) acceptFilterRulesIptables(ipt *iptables.IPTables, includeForward bool) error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if includeForward {
 		for _, rule := range r.getAcceptForwardRules() {
 			if err := ipt.Insert("filter", chainNameForward, 1, rule...); err != nil {
-				merr = multierror.Append(merr, fmt.Errorf("add iptables forward rule: %v", err))
+				merr = nberrors.Append(merr, fmt.Errorf("add iptables forward rule: %v", err))
 			} else {
 				log.Debugf("added iptables forward rule: %v", rule)
 			}
@@ -238,7 +237,7 @@ func (r *family) acceptFilterRulesIptables(ipt *iptables.IPTables, includeForwar
 
 	inputRule := r.getAcceptInputRule()
 	if err := ipt.Insert("filter", chainNameInput, 1, inputRule...); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("add iptables input rule: %v", err))
+		merr = nberrors.Append(merr, fmt.Errorf("add iptables input rule: %v", err))
 	} else {
 		log.Debugf("added iptables input rule: %v", inputRule)
 	}
@@ -416,14 +415,14 @@ func isNetbirdAcceptRuleTag(userData []byte) bool {
 }
 
 func (r *family) removeAcceptFilterRules() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if err := r.removeFilterTableRules(); err != nil {
-		merr = multierror.Append(merr, err)
+		merr = nberrors.Append(merr, err)
 	}
 
 	if err := r.removeExternalChainsRules(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("remove external chain rules: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("remove external chain rules: %w", err))
 	}
 
 	return nberrors.FormatErrorOrNil(merr)
@@ -497,14 +496,14 @@ func (r *family) removeExternalChainsRules() error {
 		return nil
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, chain := range chains {
 		if err := r.removeAcceptRulesFromChain(chain.Table, chain); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove rules from external chain %s/%s: %w", chain.Table.Name, chain.Name, err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove rules from external chain %s/%s: %w", chain.Table.Name, chain.Name, err))
 			continue
 		}
 		if err := r.conn.Flush(); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("flush external chain %s/%s: %w", chain.Table.Name, chain.Name, err))
+			merr = nberrors.Append(merr, fmt.Errorf("flush external chain %s/%s: %w", chain.Table.Name, chain.Name, err))
 		}
 	}
 
@@ -572,17 +571,17 @@ func isIptablesTable(name string) bool {
 }
 
 func (r *family) removeAcceptFilterRulesIptables(ipt *iptables.IPTables) error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	for _, rule := range r.getAcceptForwardRules() {
 		if err := ipt.DeleteIfExists("filter", chainNameForward, rule...); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove iptables forward rule: %v", err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove iptables forward rule: %v", err))
 		}
 	}
 
 	inputRule := r.getAcceptInputRule()
 	if err := ipt.DeleteIfExists("filter", chainNameInput, inputRule...); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("remove iptables input rule: %v", err))
+		merr = nberrors.Append(merr, fmt.Errorf("remove iptables input rule: %v", err))
 	}
 
 	return nberrors.FormatErrorOrNil(merr)
