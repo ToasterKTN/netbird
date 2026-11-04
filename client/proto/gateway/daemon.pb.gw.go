@@ -2,11 +2,11 @@
 // source: daemon.proto
 
 /*
-Package proto is a reverse proxy.
+Package gateway is a reverse proxy.
 
 It translates gRPC into RESTful JSON APIs.
 */
-package proto
+package gateway
 
 import (
 	"context"
@@ -16,6 +16,7 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/utilities"
+	proto_0 "github.com/netbirdio/netbird/client/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/grpclog"
@@ -35,9 +36,9 @@ var (
 	_ = metadata.Join
 )
 
-func request_DaemonService_Login_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_Login_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq LoginRequest
+		protoReq proto_0.LoginRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -47,9 +48,9 @@ func request_DaemonService_Login_0(ctx context.Context, marshaler runtime.Marsha
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_Login_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_Login_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq LoginRequest
+		protoReq proto_0.LoginRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -59,9 +60,9 @@ func local_request_DaemonService_Login_0(ctx context.Context, marshaler runtime.
 	return msg, metadata, err
 }
 
-func request_DaemonService_WaitSSOLogin_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_WaitSSOLogin_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq WaitSSOLoginRequest
+		protoReq proto_0.WaitSSOLoginRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -71,9 +72,9 @@ func request_DaemonService_WaitSSOLogin_0(ctx context.Context, marshaler runtime
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_WaitSSOLogin_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_WaitSSOLogin_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq WaitSSOLoginRequest
+		protoReq proto_0.WaitSSOLoginRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -83,9 +84,9 @@ func local_request_DaemonService_WaitSSOLogin_0(ctx context.Context, marshaler r
 	return msg, metadata, err
 }
 
-func request_DaemonService_Up_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_Up_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq UpRequest
+		protoReq proto_0.UpRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -95,9 +96,9 @@ func request_DaemonService_Up_0(ctx context.Context, marshaler runtime.Marshaler
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_Up_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_Up_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq UpRequest
+		protoReq proto_0.UpRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -107,9 +108,9 @@ func local_request_DaemonService_Up_0(ctx context.Context, marshaler runtime.Mar
 	return msg, metadata, err
 }
 
-func request_DaemonService_Status_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_Status_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq StatusRequest
+		protoReq proto_0.StatusRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -119,9 +120,9 @@ func request_DaemonService_Status_0(ctx context.Context, marshaler runtime.Marsh
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_Status_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_Status_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq StatusRequest
+		protoReq proto_0.StatusRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -131,9 +132,9 @@ func local_request_DaemonService_Status_0(ctx context.Context, marshaler runtime
 	return msg, metadata, err
 }
 
-func request_DaemonService_SubscribeStatus_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (DaemonService_SubscribeStatusClient, runtime.ServerMetadata, error) {
+func request_DaemonService_SubscribeStatus_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto_0.DaemonService_SubscribeStatusClient, runtime.ServerMetadata, error) {
 	var (
-		protoReq StatusRequest
+		protoReq proto_0.StatusRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -151,9 +152,9 @@ func request_DaemonService_SubscribeStatus_0(ctx context.Context, marshaler runt
 	return stream, metadata, nil
 }
 
-func request_DaemonService_Down_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_Down_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq DownRequest
+		protoReq proto_0.DownRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -163,9 +164,9 @@ func request_DaemonService_Down_0(ctx context.Context, marshaler runtime.Marshal
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_Down_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_Down_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq DownRequest
+		protoReq proto_0.DownRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -175,9 +176,9 @@ func local_request_DaemonService_Down_0(ctx context.Context, marshaler runtime.M
 	return msg, metadata, err
 }
 
-func request_DaemonService_GetConfig_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_GetConfig_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetConfigRequest
+		protoReq proto_0.GetConfigRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -187,9 +188,9 @@ func request_DaemonService_GetConfig_0(ctx context.Context, marshaler runtime.Ma
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_GetConfig_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_GetConfig_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetConfigRequest
+		protoReq proto_0.GetConfigRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -199,9 +200,9 @@ func local_request_DaemonService_GetConfig_0(ctx context.Context, marshaler runt
 	return msg, metadata, err
 }
 
-func request_DaemonService_ListNetworks_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_ListNetworks_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq ListNetworksRequest
+		protoReq proto_0.ListNetworksRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -211,9 +212,9 @@ func request_DaemonService_ListNetworks_0(ctx context.Context, marshaler runtime
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_ListNetworks_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_ListNetworks_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq ListNetworksRequest
+		protoReq proto_0.ListNetworksRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -223,9 +224,9 @@ func local_request_DaemonService_ListNetworks_0(ctx context.Context, marshaler r
 	return msg, metadata, err
 }
 
-func request_DaemonService_SelectNetworks_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_SelectNetworks_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SelectNetworksRequest
+		protoReq proto_0.SelectNetworksRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -235,9 +236,9 @@ func request_DaemonService_SelectNetworks_0(ctx context.Context, marshaler runti
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_SelectNetworks_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_SelectNetworks_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SelectNetworksRequest
+		protoReq proto_0.SelectNetworksRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -247,9 +248,9 @@ func local_request_DaemonService_SelectNetworks_0(ctx context.Context, marshaler
 	return msg, metadata, err
 }
 
-func request_DaemonService_DeselectNetworks_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_DeselectNetworks_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SelectNetworksRequest
+		protoReq proto_0.SelectNetworksRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -259,9 +260,9 @@ func request_DaemonService_DeselectNetworks_0(ctx context.Context, marshaler run
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_DeselectNetworks_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_DeselectNetworks_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SelectNetworksRequest
+		protoReq proto_0.SelectNetworksRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -271,9 +272,9 @@ func local_request_DaemonService_DeselectNetworks_0(ctx context.Context, marshal
 	return msg, metadata, err
 }
 
-func request_DaemonService_ForwardingRules_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_ForwardingRules_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq EmptyRequest
+		protoReq proto_0.EmptyRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -283,9 +284,9 @@ func request_DaemonService_ForwardingRules_0(ctx context.Context, marshaler runt
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_ForwardingRules_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_ForwardingRules_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq EmptyRequest
+		protoReq proto_0.EmptyRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -295,9 +296,9 @@ func local_request_DaemonService_ForwardingRules_0(ctx context.Context, marshale
 	return msg, metadata, err
 }
 
-func request_DaemonService_DebugBundle_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_DebugBundle_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq DebugBundleRequest
+		protoReq proto_0.DebugBundleRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -307,9 +308,9 @@ func request_DaemonService_DebugBundle_0(ctx context.Context, marshaler runtime.
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_DebugBundle_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_DebugBundle_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq DebugBundleRequest
+		protoReq proto_0.DebugBundleRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -319,9 +320,9 @@ func local_request_DaemonService_DebugBundle_0(ctx context.Context, marshaler ru
 	return msg, metadata, err
 }
 
-func request_DaemonService_GetLogLevel_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_GetLogLevel_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetLogLevelRequest
+		protoReq proto_0.GetLogLevelRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -331,9 +332,9 @@ func request_DaemonService_GetLogLevel_0(ctx context.Context, marshaler runtime.
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_GetLogLevel_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_GetLogLevel_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetLogLevelRequest
+		protoReq proto_0.GetLogLevelRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -343,9 +344,9 @@ func local_request_DaemonService_GetLogLevel_0(ctx context.Context, marshaler ru
 	return msg, metadata, err
 }
 
-func request_DaemonService_SetLogLevel_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_SetLogLevel_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SetLogLevelRequest
+		protoReq proto_0.SetLogLevelRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -355,9 +356,9 @@ func request_DaemonService_SetLogLevel_0(ctx context.Context, marshaler runtime.
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_SetLogLevel_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_SetLogLevel_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SetLogLevelRequest
+		protoReq proto_0.SetLogLevelRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -367,9 +368,9 @@ func local_request_DaemonService_SetLogLevel_0(ctx context.Context, marshaler ru
 	return msg, metadata, err
 }
 
-func request_DaemonService_ListStates_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_ListStates_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq ListStatesRequest
+		protoReq proto_0.ListStatesRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -379,9 +380,9 @@ func request_DaemonService_ListStates_0(ctx context.Context, marshaler runtime.M
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_ListStates_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_ListStates_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq ListStatesRequest
+		protoReq proto_0.ListStatesRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -391,9 +392,9 @@ func local_request_DaemonService_ListStates_0(ctx context.Context, marshaler run
 	return msg, metadata, err
 }
 
-func request_DaemonService_CleanState_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_CleanState_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq CleanStateRequest
+		protoReq proto_0.CleanStateRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -403,9 +404,9 @@ func request_DaemonService_CleanState_0(ctx context.Context, marshaler runtime.M
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_CleanState_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_CleanState_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq CleanStateRequest
+		protoReq proto_0.CleanStateRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -415,9 +416,9 @@ func local_request_DaemonService_CleanState_0(ctx context.Context, marshaler run
 	return msg, metadata, err
 }
 
-func request_DaemonService_DeleteState_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_DeleteState_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq DeleteStateRequest
+		protoReq proto_0.DeleteStateRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -427,9 +428,9 @@ func request_DaemonService_DeleteState_0(ctx context.Context, marshaler runtime.
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_DeleteState_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_DeleteState_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq DeleteStateRequest
+		protoReq proto_0.DeleteStateRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -439,9 +440,9 @@ func local_request_DaemonService_DeleteState_0(ctx context.Context, marshaler ru
 	return msg, metadata, err
 }
 
-func request_DaemonService_SetSyncResponsePersistence_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_SetSyncResponsePersistence_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SetSyncResponsePersistenceRequest
+		protoReq proto_0.SetSyncResponsePersistenceRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -451,9 +452,9 @@ func request_DaemonService_SetSyncResponsePersistence_0(ctx context.Context, mar
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_SetSyncResponsePersistence_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_SetSyncResponsePersistence_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SetSyncResponsePersistenceRequest
+		protoReq proto_0.SetSyncResponsePersistenceRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -463,9 +464,9 @@ func local_request_DaemonService_SetSyncResponsePersistence_0(ctx context.Contex
 	return msg, metadata, err
 }
 
-func request_DaemonService_TracePacket_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_TracePacket_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq TracePacketRequest
+		protoReq proto_0.TracePacketRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -475,9 +476,9 @@ func request_DaemonService_TracePacket_0(ctx context.Context, marshaler runtime.
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_TracePacket_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_TracePacket_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq TracePacketRequest
+		protoReq proto_0.TracePacketRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -487,9 +488,9 @@ func local_request_DaemonService_TracePacket_0(ctx context.Context, marshaler ru
 	return msg, metadata, err
 }
 
-func request_DaemonService_StartCapture_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (DaemonService_StartCaptureClient, runtime.ServerMetadata, error) {
+func request_DaemonService_StartCapture_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto_0.DaemonService_StartCaptureClient, runtime.ServerMetadata, error) {
 	var (
-		protoReq StartCaptureRequest
+		protoReq proto_0.StartCaptureRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -507,9 +508,9 @@ func request_DaemonService_StartCapture_0(ctx context.Context, marshaler runtime
 	return stream, metadata, nil
 }
 
-func request_DaemonService_StartBundleCapture_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_StartBundleCapture_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq StartBundleCaptureRequest
+		protoReq proto_0.StartBundleCaptureRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -519,9 +520,9 @@ func request_DaemonService_StartBundleCapture_0(ctx context.Context, marshaler r
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_StartBundleCapture_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_StartBundleCapture_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq StartBundleCaptureRequest
+		protoReq proto_0.StartBundleCaptureRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -531,9 +532,9 @@ func local_request_DaemonService_StartBundleCapture_0(ctx context.Context, marsh
 	return msg, metadata, err
 }
 
-func request_DaemonService_StopBundleCapture_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_StopBundleCapture_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq StopBundleCaptureRequest
+		protoReq proto_0.StopBundleCaptureRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -543,9 +544,9 @@ func request_DaemonService_StopBundleCapture_0(ctx context.Context, marshaler ru
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_StopBundleCapture_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_StopBundleCapture_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq StopBundleCaptureRequest
+		protoReq proto_0.StopBundleCaptureRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -555,9 +556,9 @@ func local_request_DaemonService_StopBundleCapture_0(ctx context.Context, marsha
 	return msg, metadata, err
 }
 
-func request_DaemonService_SubscribeEvents_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (DaemonService_SubscribeEventsClient, runtime.ServerMetadata, error) {
+func request_DaemonService_SubscribeEvents_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto_0.DaemonService_SubscribeEventsClient, runtime.ServerMetadata, error) {
 	var (
-		protoReq SubscribeRequest
+		protoReq proto_0.SubscribeRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -575,9 +576,9 @@ func request_DaemonService_SubscribeEvents_0(ctx context.Context, marshaler runt
 	return stream, metadata, nil
 }
 
-func request_DaemonService_GetEvents_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_GetEvents_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetEventsRequest
+		protoReq proto_0.GetEventsRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -587,9 +588,9 @@ func request_DaemonService_GetEvents_0(ctx context.Context, marshaler runtime.Ma
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_GetEvents_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_GetEvents_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetEventsRequest
+		protoReq proto_0.GetEventsRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -599,9 +600,9 @@ func local_request_DaemonService_GetEvents_0(ctx context.Context, marshaler runt
 	return msg, metadata, err
 }
 
-func request_DaemonService_RegisterUILog_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_RegisterUILog_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq RegisterUILogRequest
+		protoReq proto_0.RegisterUILogRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -611,9 +612,9 @@ func request_DaemonService_RegisterUILog_0(ctx context.Context, marshaler runtim
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_RegisterUILog_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_RegisterUILog_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq RegisterUILogRequest
+		protoReq proto_0.RegisterUILogRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -623,9 +624,9 @@ func local_request_DaemonService_RegisterUILog_0(ctx context.Context, marshaler 
 	return msg, metadata, err
 }
 
-func request_DaemonService_SwitchProfile_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_SwitchProfile_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SwitchProfileRequest
+		protoReq proto_0.SwitchProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -635,9 +636,9 @@ func request_DaemonService_SwitchProfile_0(ctx context.Context, marshaler runtim
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_SwitchProfile_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_SwitchProfile_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SwitchProfileRequest
+		protoReq proto_0.SwitchProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -647,9 +648,9 @@ func local_request_DaemonService_SwitchProfile_0(ctx context.Context, marshaler 
 	return msg, metadata, err
 }
 
-func request_DaemonService_SetConfig_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_SetConfig_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SetConfigRequest
+		protoReq proto_0.SetConfigRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -659,9 +660,9 @@ func request_DaemonService_SetConfig_0(ctx context.Context, marshaler runtime.Ma
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_SetConfig_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_SetConfig_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq SetConfigRequest
+		protoReq proto_0.SetConfigRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -671,9 +672,9 @@ func local_request_DaemonService_SetConfig_0(ctx context.Context, marshaler runt
 	return msg, metadata, err
 }
 
-func request_DaemonService_AddProfile_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_AddProfile_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq AddProfileRequest
+		protoReq proto_0.AddProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -683,9 +684,9 @@ func request_DaemonService_AddProfile_0(ctx context.Context, marshaler runtime.M
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_AddProfile_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_AddProfile_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq AddProfileRequest
+		protoReq proto_0.AddProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -695,9 +696,9 @@ func local_request_DaemonService_AddProfile_0(ctx context.Context, marshaler run
 	return msg, metadata, err
 }
 
-func request_DaemonService_RenameProfile_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_RenameProfile_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq RenameProfileRequest
+		protoReq proto_0.RenameProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -707,9 +708,9 @@ func request_DaemonService_RenameProfile_0(ctx context.Context, marshaler runtim
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_RenameProfile_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_RenameProfile_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq RenameProfileRequest
+		protoReq proto_0.RenameProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -719,9 +720,9 @@ func local_request_DaemonService_RenameProfile_0(ctx context.Context, marshaler 
 	return msg, metadata, err
 }
 
-func request_DaemonService_RemoveProfile_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_RemoveProfile_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq RemoveProfileRequest
+		protoReq proto_0.RemoveProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -731,9 +732,9 @@ func request_DaemonService_RemoveProfile_0(ctx context.Context, marshaler runtim
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_RemoveProfile_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_RemoveProfile_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq RemoveProfileRequest
+		protoReq proto_0.RemoveProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -743,9 +744,9 @@ func local_request_DaemonService_RemoveProfile_0(ctx context.Context, marshaler 
 	return msg, metadata, err
 }
 
-func request_DaemonService_ListProfiles_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_ListProfiles_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq ListProfilesRequest
+		protoReq proto_0.ListProfilesRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -755,9 +756,9 @@ func request_DaemonService_ListProfiles_0(ctx context.Context, marshaler runtime
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_ListProfiles_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_ListProfiles_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq ListProfilesRequest
+		protoReq proto_0.ListProfilesRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -767,9 +768,9 @@ func local_request_DaemonService_ListProfiles_0(ctx context.Context, marshaler r
 	return msg, metadata, err
 }
 
-func request_DaemonService_GetActiveProfile_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_GetActiveProfile_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetActiveProfileRequest
+		protoReq proto_0.GetActiveProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -779,9 +780,9 @@ func request_DaemonService_GetActiveProfile_0(ctx context.Context, marshaler run
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_GetActiveProfile_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_GetActiveProfile_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetActiveProfileRequest
+		protoReq proto_0.GetActiveProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -791,9 +792,9 @@ func local_request_DaemonService_GetActiveProfile_0(ctx context.Context, marshal
 	return msg, metadata, err
 }
 
-func request_DaemonService_Logout_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_Logout_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq LogoutRequest
+		protoReq proto_0.LogoutRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -803,9 +804,9 @@ func request_DaemonService_Logout_0(ctx context.Context, marshaler runtime.Marsh
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_Logout_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_Logout_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq LogoutRequest
+		protoReq proto_0.LogoutRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -815,9 +816,9 @@ func local_request_DaemonService_Logout_0(ctx context.Context, marshaler runtime
 	return msg, metadata, err
 }
 
-func request_DaemonService_GetFeatures_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_GetFeatures_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetFeaturesRequest
+		protoReq proto_0.GetFeaturesRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -827,9 +828,9 @@ func request_DaemonService_GetFeatures_0(ctx context.Context, marshaler runtime.
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_GetFeatures_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_GetFeatures_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetFeaturesRequest
+		protoReq proto_0.GetFeaturesRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -839,9 +840,9 @@ func local_request_DaemonService_GetFeatures_0(ctx context.Context, marshaler ru
 	return msg, metadata, err
 }
 
-func request_DaemonService_TriggerUpdate_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_TriggerUpdate_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq TriggerUpdateRequest
+		protoReq proto_0.TriggerUpdateRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -851,9 +852,9 @@ func request_DaemonService_TriggerUpdate_0(ctx context.Context, marshaler runtim
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_TriggerUpdate_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_TriggerUpdate_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq TriggerUpdateRequest
+		protoReq proto_0.TriggerUpdateRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -863,9 +864,9 @@ func local_request_DaemonService_TriggerUpdate_0(ctx context.Context, marshaler 
 	return msg, metadata, err
 }
 
-func request_DaemonService_GetPeerSSHHostKey_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_GetPeerSSHHostKey_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetPeerSSHHostKeyRequest
+		protoReq proto_0.GetPeerSSHHostKeyRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -875,9 +876,9 @@ func request_DaemonService_GetPeerSSHHostKey_0(ctx context.Context, marshaler ru
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_GetPeerSSHHostKey_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_GetPeerSSHHostKey_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq GetPeerSSHHostKeyRequest
+		protoReq proto_0.GetPeerSSHHostKeyRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -887,9 +888,9 @@ func local_request_DaemonService_GetPeerSSHHostKey_0(ctx context.Context, marsha
 	return msg, metadata, err
 }
 
-func request_DaemonService_RequestJWTAuth_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_RequestJWTAuth_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq RequestJWTAuthRequest
+		protoReq proto_0.RequestJWTAuthRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -899,9 +900,9 @@ func request_DaemonService_RequestJWTAuth_0(ctx context.Context, marshaler runti
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_RequestJWTAuth_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_RequestJWTAuth_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq RequestJWTAuthRequest
+		protoReq proto_0.RequestJWTAuthRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -911,9 +912,9 @@ func local_request_DaemonService_RequestJWTAuth_0(ctx context.Context, marshaler
 	return msg, metadata, err
 }
 
-func request_DaemonService_WaitJWTToken_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_WaitJWTToken_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq WaitJWTTokenRequest
+		protoReq proto_0.WaitJWTTokenRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -923,9 +924,9 @@ func request_DaemonService_WaitJWTToken_0(ctx context.Context, marshaler runtime
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_WaitJWTToken_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_WaitJWTToken_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq WaitJWTTokenRequest
+		protoReq proto_0.WaitJWTTokenRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -935,9 +936,9 @@ func local_request_DaemonService_WaitJWTToken_0(ctx context.Context, marshaler r
 	return msg, metadata, err
 }
 
-func request_DaemonService_RequestExtendAuthSession_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_RequestExtendAuthSession_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq RequestExtendAuthSessionRequest
+		protoReq proto_0.RequestExtendAuthSessionRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -947,9 +948,9 @@ func request_DaemonService_RequestExtendAuthSession_0(ctx context.Context, marsh
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_RequestExtendAuthSession_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_RequestExtendAuthSession_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq RequestExtendAuthSessionRequest
+		protoReq proto_0.RequestExtendAuthSessionRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -959,9 +960,9 @@ func local_request_DaemonService_RequestExtendAuthSession_0(ctx context.Context,
 	return msg, metadata, err
 }
 
-func request_DaemonService_WaitExtendAuthSession_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_WaitExtendAuthSession_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq WaitExtendAuthSessionRequest
+		protoReq proto_0.WaitExtendAuthSessionRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -971,9 +972,9 @@ func request_DaemonService_WaitExtendAuthSession_0(ctx context.Context, marshale
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_WaitExtendAuthSession_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_WaitExtendAuthSession_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq WaitExtendAuthSessionRequest
+		protoReq proto_0.WaitExtendAuthSessionRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -983,9 +984,9 @@ func local_request_DaemonService_WaitExtendAuthSession_0(ctx context.Context, ma
 	return msg, metadata, err
 }
 
-func request_DaemonService_DismissSessionWarning_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_DismissSessionWarning_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq DismissSessionWarningRequest
+		protoReq proto_0.DismissSessionWarningRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -995,9 +996,9 @@ func request_DaemonService_DismissSessionWarning_0(ctx context.Context, marshale
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_DismissSessionWarning_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_DismissSessionWarning_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq DismissSessionWarningRequest
+		protoReq proto_0.DismissSessionWarningRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -1007,9 +1008,9 @@ func local_request_DaemonService_DismissSessionWarning_0(ctx context.Context, ma
 	return msg, metadata, err
 }
 
-func request_DaemonService_StartCPUProfile_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_StartCPUProfile_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq StartCPUProfileRequest
+		protoReq proto_0.StartCPUProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -1019,9 +1020,9 @@ func request_DaemonService_StartCPUProfile_0(ctx context.Context, marshaler runt
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_StartCPUProfile_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_StartCPUProfile_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq StartCPUProfileRequest
+		protoReq proto_0.StartCPUProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -1031,9 +1032,9 @@ func local_request_DaemonService_StartCPUProfile_0(ctx context.Context, marshale
 	return msg, metadata, err
 }
 
-func request_DaemonService_StopCPUProfile_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_StopCPUProfile_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq StopCPUProfileRequest
+		protoReq proto_0.StopCPUProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -1043,9 +1044,9 @@ func request_DaemonService_StopCPUProfile_0(ctx context.Context, marshaler runti
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_StopCPUProfile_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_StopCPUProfile_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq StopCPUProfileRequest
+		protoReq proto_0.StopCPUProfileRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -1055,9 +1056,9 @@ func local_request_DaemonService_StopCPUProfile_0(ctx context.Context, marshaler
 	return msg, metadata, err
 }
 
-func request_DaemonService_GetInstallerResult_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_GetInstallerResult_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq InstallerResultRequest
+		protoReq proto_0.InstallerResultRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -1067,9 +1068,9 @@ func request_DaemonService_GetInstallerResult_0(ctx context.Context, marshaler r
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_GetInstallerResult_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_GetInstallerResult_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq InstallerResultRequest
+		protoReq proto_0.InstallerResultRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -1079,9 +1080,9 @@ func local_request_DaemonService_GetInstallerResult_0(ctx context.Context, marsh
 	return msg, metadata, err
 }
 
-func request_DaemonService_ExposeService_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (DaemonService_ExposeServiceClient, runtime.ServerMetadata, error) {
+func request_DaemonService_ExposeService_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto_0.DaemonService_ExposeServiceClient, runtime.ServerMetadata, error) {
 	var (
-		protoReq ExposeServiceRequest
+		protoReq proto_0.ExposeServiceRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -1099,9 +1100,9 @@ func request_DaemonService_ExposeService_0(ctx context.Context, marshaler runtim
 	return stream, metadata, nil
 }
 
-func request_DaemonService_WailsUIReady_0(ctx context.Context, marshaler runtime.Marshaler, client DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_DaemonService_WailsUIReady_0(ctx context.Context, marshaler runtime.Marshaler, client proto_0.DaemonServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq WailsUIReadyRequest
+		protoReq proto_0.WailsUIReadyRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -1111,9 +1112,9 @@ func request_DaemonService_WailsUIReady_0(ctx context.Context, marshaler runtime
 	return msg, metadata, err
 }
 
-func local_request_DaemonService_WailsUIReady_0(ctx context.Context, marshaler runtime.Marshaler, server DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func local_request_DaemonService_WailsUIReady_0(ctx context.Context, marshaler runtime.Marshaler, server proto_0.DaemonServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
-		protoReq WailsUIReadyRequest
+		protoReq proto_0.WailsUIReadyRequest
 		metadata runtime.ServerMetadata
 	)
 	if err := marshaler.NewDecoder(req.Body).Decode(&protoReq); err != nil && !errors.Is(err, io.EOF) {
@@ -1128,7 +1129,7 @@ func local_request_DaemonService_WailsUIReady_0(ctx context.Context, marshaler r
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterDaemonServiceHandlerFromEndpoint instead.
 // GRPC interceptors will not work for this type of registration. To use interceptors, you must use the "runtime.WithMiddlewares" option in the "runtime.NewServeMux" call.
-func RegisterDaemonServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server DaemonServiceServer) error {
+func RegisterDaemonServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server proto_0.DaemonServiceServer) error {
 	mux.Handle(http.MethodPost, pattern_DaemonService_Login_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -2028,15 +2029,15 @@ func RegisterDaemonServiceHandlerFromEndpoint(ctx context.Context, mux *runtime.
 // RegisterDaemonServiceHandler registers the http handlers for service DaemonService to "mux".
 // The handlers forward requests to the grpc endpoint over "conn".
 func RegisterDaemonServiceHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
-	return RegisterDaemonServiceHandlerClient(ctx, mux, NewDaemonServiceClient(conn))
+	return RegisterDaemonServiceHandlerClient(ctx, mux, proto_0.NewDaemonServiceClient(conn))
 }
 
 // RegisterDaemonServiceHandlerClient registers the http handlers for service DaemonService
-// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "DaemonServiceClient".
-// Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "DaemonServiceClient"
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "proto_0.DaemonServiceClient".
+// Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "proto_0.DaemonServiceClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
-// "DaemonServiceClient" to call the correct interceptors. This client ignores the HTTP middlewares.
-func RegisterDaemonServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client DaemonServiceClient) error {
+// "proto_0.DaemonServiceClient" to call the correct interceptors. This client ignores the HTTP middlewares.
+func RegisterDaemonServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client proto_0.DaemonServiceClient) error {
 	mux.Handle(http.MethodPost, pattern_DaemonService_Login_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
