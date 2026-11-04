@@ -98,9 +98,8 @@ func (s *memoryStore) GetWithTTL(_ context.Context, key any) (any, time.Duration
 	if !ok {
 		return nil, 0, store.NotFoundWithCause(errMemoryNotFound)
 	}
-	if it.expires.IsZero() {
-		return it.value, 0, nil
-	}
+	// Same as eko/gocache's go-cache store: time.Until(expiration), which is
+	// a large negative duration for items without expiry.
 	return it.value, it.expires.Sub(now), nil
 }
 
