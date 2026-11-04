@@ -1,6 +1,6 @@
 //go:build !js
 
-package encryption
+package route53tls
 
 import (
 	"context"

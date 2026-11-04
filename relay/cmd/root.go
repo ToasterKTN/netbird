@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/netbirdio/netbird/encryption"
+	"github.com/netbirdio/netbird/encryption/route53tls"
 	"github.com/netbirdio/netbird/relay/healthcheck"
 	"github.com/netbirdio/netbird/relay/server"
 	"github.com/netbirdio/netbird/shared/metrics"
@@ -337,7 +338,7 @@ func createSTUNListeners() ([]*net.UDPConn, error) {
 func handleTLSConfig(cfg *Config) (*tls.Config, bool, error) {
 	if cfg.LetsencryptAWSRoute53 {
 		log.Debugf("using Let's Encrypt DNS resolver with Route 53 support")
-		r53 := encryption.Route53TLS{
+		r53 := route53tls.Route53TLS{
 			DataDir: cfg.LetsencryptDataDir,
 			Email:   cfg.LetsencryptEmail,
 			Domains: cfg.LetsencryptDomains,

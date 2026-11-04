@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/netbirdio/netbird/encryption"
+	"github.com/netbirdio/netbird/encryption/route53tls"
 	agentnetworkpricing "github.com/netbirdio/netbird/management/internals/modules/agentnetwork/pricing"
 	accesslogsmanager "github.com/netbirdio/netbird/management/internals/modules/reverseproxy/accesslogs/manager"
 	mgmtServer "github.com/netbirdio/netbird/management/internals/server"
@@ -495,7 +496,7 @@ func handleTLSConfig(cfg *CombinedConfig) (*tls.Config, bool, error) {
 
 	if tlsCfg.LetsEncrypt.AWSRoute53 {
 		log.Debugf("using Let's Encrypt DNS resolver with Route 53 support")
-		r53 := encryption.Route53TLS{
+		r53 := route53tls.Route53TLS{
 			DataDir: tlsCfg.LetsEncrypt.DataDir,
 			Email:   tlsCfg.LetsEncrypt.Email,
 			Domains: tlsCfg.LetsEncrypt.Domains,
