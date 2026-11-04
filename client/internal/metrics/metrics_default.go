@@ -2,7 +2,7 @@
 
 package metrics
 
-import "github.com/prometheus/client_golang/prometheus"
+import "github.com/netbirdio/netbird/client/internal/metrics/promtext"
 
 // NewClientMetrics creates a new ClientMetrics instance
 func NewClientMetrics(agentInfo AgentInfo) *ClientMetrics {
@@ -12,9 +12,8 @@ func NewClientMetrics(agentInfo AgentInfo) *ClientMetrics {
 	}
 }
 
-// PrometheusGatherer returns the registry with the mirrored Prometheus
-// metrics, or nil when unavailable.
-func (c *ClientMetrics) PrometheusGatherer() prometheus.Gatherer {
+// PrometheusGatherer returns the mirrored Prometheus metrics, or nil when unavailable.
+func (c *ClientMetrics) PrometheusGatherer() promtext.Gatherer {
 	if c == nil {
 		return nil
 	}

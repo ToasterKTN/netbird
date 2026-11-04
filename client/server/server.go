@@ -14,6 +14,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/netbirdio/netbird/client/internal/metrics/promtext"
+
 	"github.com/cenkalti/backoff/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -25,7 +27,6 @@ import (
 	"github.com/netbirdio/netbird/client/internal/auth"
 	"github.com/netbirdio/netbird/client/internal/expose"
 	"github.com/netbirdio/netbird/client/internal/ipcauth"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netbirdio/netbird/client/internal/localmetrics"
 	"github.com/netbirdio/netbird/client/internal/profilemanager"
@@ -225,7 +226,7 @@ func New(ctx context.Context, logFile string, configFile string, profilesDisable
 
 // clientMetricsGatherer returns the Prometheus gatherer of the running
 // engine's client metrics, or nil when no engine is running.
-func (s *Server) clientMetricsGatherer() prometheus.Gatherer {
+func (s *Server) clientMetricsGatherer() promtext.Gatherer {
 	s.mutex.Lock()
 	connectClient := s.connectClient
 	s.mutex.Unlock()

@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/netbirdio/netbird/client/internal/metrics/promtext"
 	"github.com/netbirdio/netbird/client/internal/peer"
 )
 
@@ -43,8 +43,7 @@ func testStatus() *stubStatus {
 func TestCollector(t *testing.T) {
 	c := newCollector(testStatus())
 
-	expected := `
-# HELP netbird_management_connected Whether the client is connected to the management service (1 connected, 0 disconnected).
+	expected := `# HELP netbird_management_connected Whether the client is connected to the management service (1 connected, 0 disconnected).
 # TYPE netbird_management_connected gauge
 netbird_management_connected 1
 # HELP netbird_peer_latency_seconds Round-trip latency per directly connected peer; relayed connections have no latency measurement.
@@ -62,7 +61,9 @@ netbird_peers_connected{connection_type="relay"} 1
 # TYPE netbird_signal_connected gauge
 netbird_signal_connected 1
 `
-	require.NoError(t, testutil.CollectAndCompare(c, strings.NewReader(expected)))
+	var sb strings.Builder
+	require.NoError(t, promtext.Write(&sb, c.Gather()))
+	require.Equal(t, expected, sb.String())
 }
 
 func TestServe(t *testing.T) {
