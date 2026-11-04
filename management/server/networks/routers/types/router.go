@@ -3,7 +3,7 @@ package types
 import (
 	"errors"
 
-	"github.com/rs/xid"
+	"github.com/netbirdio/netbird/shared/xid"
 
 	"github.com/netbirdio/netbird/management/server/networks/types"
 	"github.com/netbirdio/netbird/management/server/util"

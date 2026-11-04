@@ -9,8 +9,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/c-robinson/iplib"
-	"github.com/rs/xid"
+	"github.com/netbirdio/netbird/shared/xid"
 
 	"github.com/netbirdio/netbird/management/server/util"
 	"github.com/netbirdio/netbird/shared/management/status"
@@ -44,14 +43,14 @@ type Network struct {
 // It takes a random /16 subnet from 100.64.0.0/10 (64 different subnets)
 // and a random /64 subnet from fd00:4e42::/32 for IPv6.
 func NewNetwork() *Network {
-	n := iplib.NewNet4(net.ParseIP("100.64.0.0"), NetSize)
-	sub, _ := n.Subnet(SubnetSize)
-
-	intn := util.RandIntn(len(sub))
+	intn := util.RandIntn(1 << (SubnetSize - NetSize))
+	base := binary.BigEndian.Uint32(net.IPv4(100, 64, 0, 0).To4())
+	ip := make(net.IP, net.IPv4len)
+	binary.BigEndian.PutUint32(ip, base+uint32(intn)<<(32-SubnetSize))
 
 	return &Network{
 		Identifier: xid.New().String(),
-		Net:        sub[intn].IPNet,
+		Net:        net.IPNet{IP: ip, Mask: net.CIDRMask(SubnetSize, 32)},
 		NetV6:      AllocateIPv6Subnet(),
 		Dns:        "",
 		Serial:     0,

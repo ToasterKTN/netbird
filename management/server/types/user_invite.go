@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/xid"
+	"github.com/netbirdio/netbird/shared/xid"
 
 	"github.com/netbirdio/netbird/base62"
 	"github.com/netbirdio/netbird/util/crypt"

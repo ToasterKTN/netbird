@@ -354,3 +354,19 @@ func TestAllocateRandomPeerIPv6_NonByteBoundary(t *testing.T) {
 		assert.Equal(t, prefixBytes[7]&0xf0, b[7]&0xf0, "partial byte network bits should be preserved for /60")
 	}
 }
+
+func TestNewNetworkPicksSubnetOfCGNATRange(t *testing.T) {
+	_, cgnat, _ := net.ParseCIDR("100.64.0.0/10")
+	seen := make(map[string]struct{})
+	for i := 0; i < 2000; i++ {
+		n := NewNetwork()
+		ones, bits := n.Net.Mask.Size()
+		require.Equal(t, SubnetSize, ones)
+		require.Equal(t, 32, bits)
+		require.Len(t, n.Net.IP, net.IPv4len)
+		require.True(t, cgnat.Contains(n.Net.IP), n.Net.String())
+		require.Equal(t, n.Net.IP.String(), n.Net.IP.Mask(n.Net.Mask).String())
+		seen[n.Net.String()] = struct{}{}
+	}
+	require.Len(t, seen, 64)
+}

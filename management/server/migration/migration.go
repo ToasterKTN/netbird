@@ -13,10 +13,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/rs/xid"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/netbirdio/netbird/shared/xid"
 )
 
 // MigrateFieldFromGobToJSON migrates a column from Gob encoding to JSON encoding.

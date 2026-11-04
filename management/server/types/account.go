@@ -10,8 +10,9 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"github.com/rs/xid"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/netbirdio/netbird/shared/xid"
 
 	"github.com/netbirdio/netbird/client/ssh/auth"
 	nbdns "github.com/netbirdio/netbird/dns"

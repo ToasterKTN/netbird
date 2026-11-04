@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rs/xid"
+	"github.com/netbirdio/netbird/shared/xid"
 
 	"github.com/netbirdio/netbird/management/server/account"
 	"github.com/netbirdio/netbird/management/server/activity"

@@ -8,7 +8,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
-	"github.com/rs/xid"
+
+	"github.com/netbirdio/netbird/shared/xid"
 
 	"github.com/netbirdio/netbird/management/server/util"
 )

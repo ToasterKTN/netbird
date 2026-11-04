@@ -16,10 +16,11 @@ import (
 
 	cacheStore "github.com/eko/gocache/lib/v4/store"
 	"github.com/eko/gocache/store/redis/v4"
-	"github.com/rs/xid"
 	log "github.com/sirupsen/logrus"
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/exp/maps"
+
+	"github.com/netbirdio/netbird/shared/xid"
 
 	nbdns "github.com/netbirdio/netbird/dns"
 	"github.com/netbirdio/netbird/formatter/hook"

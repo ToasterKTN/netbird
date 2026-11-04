@@ -3,10 +3,9 @@ package util
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"slices"
-
-	"github.com/skratchdot/open-golang/open"
 )
 
 const (
@@ -27,7 +26,21 @@ func OpenBrowser(url string) error {
 	if browser := os.Getenv(envBrowser); browser != "" {
 		return exec.Command(browser, url).Start()
 	}
-	return open.Run(url)
+	return openCommand(url).Run()
+}
+
+// openCommand returns the platform URL opener: open on macOS, the
+// url.dll protocol handler on Windows, xdg-open elsewhere.
+func openCommand(url string) *exec.Cmd {
+	switch runtime.GOOS {
+	case "darwin":
+		return exec.Command("open", url)
+	case "windows":
+		rundll32 := filepath.Join(os.Getenv("SYSTEMROOT"), "System32", "rundll32.exe")
+		return exec.Command(rundll32, "url.dll,FileProtocolHandler", url)
+	default:
+		return exec.Command("xdg-open", url)
+	}
 }
 
 // browserSessionEnvVars returns the variables that decide whether OpenBrowser can open a URL.

@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/rs/xid"
+	"github.com/netbirdio/netbird/shared/xid"
 
 	"github.com/netbirdio/netbird/shared/management/http/api"
 )

@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/netbirdio/dex/storage"
-	"github.com/rs/xid"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/netbirdio/netbird/shared/xid"
 
 	"github.com/netbirdio/netbird/idp/dex"
 	"github.com/netbirdio/netbird/management/server/activity"

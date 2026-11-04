@@ -15,8 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/xid"
 	"google.golang.org/protobuf/types/known/durationpb"
+
+	"github.com/netbirdio/netbird/shared/xid"
 
 	"github.com/netbirdio/netbird/management/internals/modules/reverseproxy/proxy"
 	"github.com/netbirdio/netbird/shared/hash/argon2id"

@@ -12,10 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/xid"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
 	"gorm.io/gorm"
+
+	"github.com/netbirdio/netbird/shared/xid"
 
 	nbdns "github.com/netbirdio/netbird/dns"
 	"github.com/netbirdio/netbird/management/server/idp"
