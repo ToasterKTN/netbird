@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -16,9 +15,9 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	"github.com/netbirdio/netbird/client/proto"
 )
@@ -310,16 +309,11 @@ func writeKubeconfig(kubeconfigPath string, kc kubernetesCluster) error {
 	})
 	cfg["current-context"] = kc.name
 
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
-	if err := enc.Encode(cfg); err != nil {
+	out, err := yaml.Marshal(cfg)
+	if err != nil {
 		return err
 	}
-	if err := enc.Close(); err != nil {
-		return err
-	}
-	if err := os.WriteFile(kubeconfigPath, buf.Bytes(), 0o600); err != nil {
+	if err := os.WriteFile(kubeconfigPath, out, 0o600); err != nil {
 		return err
 	}
 	return nil
