@@ -31,7 +31,6 @@ import (
 	"github.com/netbirdio/netbird/management/internals/modules/zones/records"
 	"github.com/netbirdio/netbird/management/internals/shared/db"
 	"github.com/netbirdio/netbird/management/server/telemetry"
-	"github.com/netbirdio/netbird/management/server/testutil"
 	"github.com/netbirdio/netbird/management/server/types"
 	nbdomain "github.com/netbirdio/netbird/shared/management/domain"
 	"github.com/netbirdio/netbird/util"
@@ -888,11 +887,19 @@ func getSqlStoreEngine(ctx context.Context, sqliteStore *SqlStore, kind types.En
 	return store, closeConnection, nil
 }
 
+// createPostgresTestContainer starts a throwaway Postgres container and returns its DSN.
+// It is only set when built with the "testcontainers" tag so production binaries
+// don't link testcontainers-go and its dependency tree.
+var createPostgresTestContainer func() (string, error)
+
 func newReusedPostgresStore(ctx context.Context, sqliteStore *SqlStore) (*SqlStore, func(), error) {
 	dsn, ok := lookupDSNEnv(PostgresDsnEnv, PostgresDsnEnvLegacy)
 	if !ok || dsn == "" {
+		if createPostgresTestContainer == nil {
+			return nil, nil, fmt.Errorf("%s is not set and test containers are not available (build tests with -tags testcontainers)", PostgresDsnEnv)
+		}
 		var err error
-		_, dsn, err = testutil.CreatePostgresTestContainer()
+		dsn, err = createPostgresTestContainer()
 		if err != nil {
 			return nil, nil, err
 		}
