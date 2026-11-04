@@ -99,7 +99,6 @@ require (
 	github.com/pion/stun/v2 v2.0.0
 	github.com/pion/stun/v3 v3.1.0
 	github.com/pion/transport/v3 v3.1.1
-	github.com/pion/turn/v3 v3.0.1
 	github.com/pires/go-proxyproto v0.11.0
 	github.com/pkg/sftp v1.13.9
 	github.com/prometheus/client_golang v1.23.2
@@ -312,7 +311,7 @@ require (
 	github.com/pion/dtls/v3 v3.0.9 // indirect
 	github.com/pion/mdns/v2 v2.0.7 // indirect
 	github.com/pion/transport/v2 v2.2.4 // indirect
-	github.com/pion/turn/v4 v4.1.1 // indirect
+	github.com/pion/turn/v4 v4.1.1
 	github.com/pjbgf/sha1cd v0.6.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect

@@ -20,14 +20,15 @@ import (
 	"github.com/netbirdio/netbird/client/iface/wgaddr"
 	"github.com/netbirdio/netbird/client/iface/wgbackend"
 	"github.com/netbirdio/netbird/client/iface/wgproxy"
+	"github.com/netbirdio/netbird/client/internal/defaults"
 	"github.com/netbirdio/netbird/monotime"
 )
 
 const (
-	DefaultMTU         = 1280
-	MinMTU             = 576
-	MaxMTU             = 8192
-	DefaultWgPort      = 51820
+	DefaultMTU         = defaults.DefaultMTU
+	MinMTU             = defaults.MinMTU
+	MaxMTU             = defaults.MaxMTU
+	DefaultWgPort      = defaults.DefaultWgPort
 	WgInterfaceDefault = configurer.WgInterfaceDefault
 )
 
