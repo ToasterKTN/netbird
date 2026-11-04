@@ -3,11 +3,8 @@
 package cmd
 
 import (
-	"errors"
-	"io"
 	"os"
 
-	"github.com/pkg/sftp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -65,29 +62,10 @@ func sftpMain(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	sftpServer, err := sftp.NewServer(struct {
-		io.Reader
-		io.WriteCloser
-	}{
-		Reader:      os.Stdin,
-		WriteCloser: os.Stdout,
-	})
-	if err != nil {
-		cmd.PrintErrf("SFTP server creation failed: %v\n", err)
-		os.Exit(sshserver.ExitCodeShellExecFail)
-	}
-
-	log.Tracef("starting SFTP server with dropped privileges")
-	if err := sftpServer.Serve(); err != nil && !errors.Is(err, io.EOF) {
+	log.Tracef("starting SFTP server")
+	if err := sshserver.ServeSFTP(stdio{Reader: os.Stdin, WriteCloser: os.Stdout}); err != nil {
 		cmd.PrintErrf("SFTP server error: %v\n", err)
-		if closeErr := sftpServer.Close(); closeErr != nil {
-			cmd.PrintErrf("SFTP server close error: %v\n", closeErr)
-		}
 		os.Exit(sshserver.ExitCodeShellExecFail)
-	}
-
-	if closeErr := sftpServer.Close(); closeErr != nil {
-		cmd.PrintErrf("SFTP server close error: %v\n", closeErr)
 	}
 	os.Exit(sshserver.ExitCodeSuccess)
 	return nil
