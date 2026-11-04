@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/golang/protobuf/proto" //nolint
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -18,6 +17,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
+	pb "google.golang.org/protobuf/proto"
 
 	"github.com/netbirdio/netbird/encryption"
 	"github.com/netbirdio/netbird/management/internals/controllers/network_map/controller"
