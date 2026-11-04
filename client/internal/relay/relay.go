@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/pion/stun/v3"
-	"github.com/pion/turn/v3"
+	"github.com/pion/turn/v4"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/netbirdio/netbird/client/internal/stdnet"
