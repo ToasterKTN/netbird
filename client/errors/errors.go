@@ -11,6 +11,9 @@ import (
 // Error collects multiple errors. The zero value and nil are both empty.
 type Error struct {
 	Errors []error
+	// compact selects the format FormatErrorOrNil applies; the default is
+	// go-multierror's ListFormatFunc, including its trailing blank line.
+	compact bool
 }
 
 // Append adds errs to err, flattening nested *Error values and skipping nil
@@ -35,7 +38,10 @@ func Append(err *Error, errs ...error) *Error {
 
 // Error implements the error interface.
 func (e *Error) Error() string {
-	return formatError(e.Errors)
+	if e.compact {
+		return formatError(e.Errors)
+	}
+	return listFormat(e.Errors)
 }
 
 // Unwrap returns the collected errors so errors.Is/As inspect each of them.
@@ -54,6 +60,22 @@ func (e *Error) ErrorOrNil() error {
 	return e
 }
 
+// listFormat is go-multierror's default ListFormatFunc.
+func listFormat(es []error) string {
+	if len(es) == 1 {
+		return fmt.Sprintf("1 error occurred:\n\t* %s\n\n", es[0])
+	}
+
+	points := make([]string, len(es))
+	for i, err := range es {
+		points[i] = fmt.Sprintf("* %s", err)
+	}
+
+	return fmt.Sprintf(
+		"%d errors occurred:\n\t%s\n\n",
+		len(es), strings.Join(points, "\n\t"))
+}
+
 func formatError(es []error) string {
 	if len(es) == 1 {
 		return fmt.Sprintf("1 error occurred:\n\t* %s", es[0])
@@ -69,7 +91,11 @@ func formatError(es []error) string {
 		len(es), strings.Join(points, "\n\t"))
 }
 
-// FormatErrorOrNil returns nil if err holds no errors, or err otherwise.
+// FormatErrorOrNil switches err to the compact format (no trailing blank
+// line) and returns nil if it holds no errors, or err otherwise.
 func FormatErrorOrNil(err *Error) error {
+	if err != nil {
+		err.compact = true
+	}
 	return err.ErrorOrNil()
 }
