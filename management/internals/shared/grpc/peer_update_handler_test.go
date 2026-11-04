@@ -9,10 +9,10 @@ import (
 	"testing/synctest"
 	"time"
 
-	pb "github.com/golang/protobuf/proto" //nolint
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+	pb "google.golang.org/protobuf/proto"
 
 	"github.com/netbirdio/netbird/management/internals/controllers/network_map"
 	nbpeer "github.com/netbirdio/netbird/management/server/peer"

@@ -15,14 +15,14 @@ import (
 	"time"
 
 	jwtv5 "github.com/golang-jwt/jwt/v5"
-	pb "github.com/golang/protobuf/proto" // nolint
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/realip"
 	log "github.com/sirupsen/logrus"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+	pb "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/netbirdio/netbird/shared/management/client/common"
 	"github.com/netbirdio/netbird/shared/management/grpc"
@@ -185,7 +185,7 @@ func (s *Server) GetServerKey(ctx context.Context, req *proto.Empty) (*proto.Ser
 	now := time.Now().Add(24 * time.Hour)
 	secs := int64(now.Second())
 	nanos := int32(now.Nanosecond())
-	expiresAt := &timestamp.Timestamp{Seconds: secs, Nanos: nanos}
+	expiresAt := &timestamppb.Timestamp{Seconds: secs, Nanos: nanos}
 
 	key, err := s.secretsManager.GetWGKey()
 	if err != nil {

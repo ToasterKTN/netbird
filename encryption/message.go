@@ -1,9 +1,9 @@
 package encryption
 
 import (
-	pb "github.com/golang/protobuf/proto" //nolint
 	log "github.com/sirupsen/logrus"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+	pb "google.golang.org/protobuf/proto"
 )
 
 type Encrypter interface {
@@ -20,7 +20,7 @@ func (e DefaultEncrypter) EncryptMessage(remotePubKey wgtypes.Key, ourPrivateKey
 func EncryptMessage(remotePubKey wgtypes.Key, ourPrivateKey wgtypes.Key, message pb.Message) ([]byte, error) {
 	byteResp, err := pb.Marshal(message)
 	if err != nil {
-		log.Errorf("failed marshalling message %v, %+v", err, message.String())
+		log.Errorf("failed marshalling message %v, %+v", err, message)
 		return nil, err
 	}
 
