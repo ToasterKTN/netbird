@@ -1,3 +1,5 @@
+//go:build idp_authentik
+
 package idp
 
 import (

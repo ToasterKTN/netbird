@@ -1,3 +1,5 @@
+//go:build idp_okta
+
 package idp
 
 import (

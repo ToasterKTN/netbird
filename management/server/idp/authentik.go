@@ -1,3 +1,5 @@
+//go:build idp_authentik
+
 package idp
 
 import (
@@ -25,16 +27,6 @@ type AuthentikManager struct {
 	credentials ManagerCredentials
 	helper      ManagerHelper
 	appMetrics  telemetry.AppMetrics
-}
-
-// AuthentikClientConfig authentik manager client configurations.
-type AuthentikClientConfig struct {
-	Issuer        string
-	ClientID      string
-	Username      string
-	Password      string
-	TokenEndpoint string
-	GrantType     string
 }
 
 // AuthentikCredentials authentik authentication information.
@@ -418,4 +410,8 @@ func parseAuthentikUser(user api.User) *UserData {
 		Name:  user.Name,
 		ID:    strconv.FormatInt(int64(user.Pk), 10),
 	}
+}
+
+func newAuthentikManager(config AuthentikClientConfig, appMetrics telemetry.AppMetrics) (Manager, error) {
+	return NewAuthentikManager(config, appMetrics)
 }

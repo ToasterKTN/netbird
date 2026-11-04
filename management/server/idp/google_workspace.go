@@ -1,3 +1,5 @@
+//go:build idp_google
+
 package idp
 
 import (
@@ -21,12 +23,6 @@ type GoogleWorkspaceManager struct {
 	credentials  ManagerCredentials
 	helper       ManagerHelper
 	appMetrics   telemetry.AppMetrics
-}
-
-// GoogleWorkspaceClientConfig Google Workspace manager client configurations.
-type GoogleWorkspaceClientConfig struct {
-	ServiceAccountKey string
-	CustomerID        string
 }
 
 // GoogleWorkspaceCredentials Google Workspace authentication information.
@@ -246,4 +242,8 @@ func parseGoogleWorkspaceUser(user *admin.User) *UserData {
 		Email: user.PrimaryEmail,
 		Name:  user.Name.FullName,
 	}
+}
+
+func newGoogleManager(ctx context.Context, config GoogleWorkspaceClientConfig, appMetrics telemetry.AppMetrics) (Manager, error) {
+	return NewGoogleWorkspaceManager(ctx, config, appMetrics)
 }
