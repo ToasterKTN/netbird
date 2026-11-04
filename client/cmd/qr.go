@@ -1,3 +1,5 @@
+//go:build qrcode
+
 package cmd
 
 import (
