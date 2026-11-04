@@ -8,7 +8,6 @@ import (
 
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/google/nftables"
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -153,14 +152,14 @@ func (r *family) Reset() error {
 	// clear without deleting the ipsets, the nf table will be deleted by the caller
 	r.ipsetCounter.Clear()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if err := r.removeAcceptFilterRules(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("remove accept filter rules: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("remove accept filter rules: %w", err))
 	}
 
 	if err := firewalld.UntrustInterface(r.wgIface.Name()); err != nil {
-		merr = multierror.Append(merr, err)
+		merr = nberrors.Append(merr, err)
 	}
 
 	return nberrors.FormatErrorOrNil(merr)
@@ -216,12 +215,12 @@ func (r *family) iptablesProto() iptables.Protocol {
 }
 
 func (r *family) refreshRulesMap() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	newRules := make(map[firewall.RuleID]*nftables.Rule)
 	for _, chain := range r.chains {
 		rules, err := r.conn.GetRules(chain.Table, chain)
 		if err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("list rules for chain %s: %w", chain.Name, err))
+			merr = nberrors.Append(merr, fmt.Errorf("list rules for chain %s: %w", chain.Name, err))
 			// preserve existing entries for this chain since we can't verify their state
 			for k, v := range r.rules {
 				if v.Chain != nil && v.Chain.Name == chain.Name {

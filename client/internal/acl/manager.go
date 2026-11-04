@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/mitchellh/hashstructure/v2"
 	log "github.com/sirupsen/logrus"
 
@@ -203,9 +202,9 @@ func (d *DefaultManager) applyPeerACLs(networkMap *mgmProto.NetworkMap) error {
 	}
 
 	newRulePairs := make(map[id.RuleID][]firewall.Rule)
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	if err != nil {
-		merr = multierror.Append(merr, err)
+		merr = nberrors.Append(merr, err)
 	}
 
 	// Apply denies first. A deny that fails to install is a security
@@ -219,7 +218,7 @@ func (d *DefaultManager) applyPeerACLs(networkMap *mgmProto.NetworkMap) error {
 	}
 
 	if err := d.installPeerGroups(accepts, newRulePairs, false); err != nil {
-		merr = multierror.Append(merr, err)
+		merr = nberrors.Append(merr, err)
 	}
 
 	// Tear down rules that disappeared from the networkmap. Any rule
@@ -234,7 +233,7 @@ func (d *DefaultManager) applyPeerACLs(networkMap *mgmProto.NetworkMap) error {
 		var remaining []firewall.Rule
 		for _, rule := range rules {
 			if err := d.firewall.DeleteFilterRule(rule); err != nil {
-				merr = multierror.Append(merr, fmt.Errorf("delete peer rule, will retry: %w", err))
+				merr = nberrors.Append(merr, fmt.Errorf("delete peer rule, will retry: %w", err))
 				remaining = append(remaining, rule)
 			}
 		}
@@ -256,7 +255,7 @@ func (d *DefaultManager) applyPeerACLs(networkMap *mgmProto.NetworkMap) error {
 // allow cannot drop every other legitimate allow in the pass.
 func (d *DefaultManager) installPeerGroups(groups []*peerRuleGroup, newRulePairs map[id.RuleID][]firewall.Rule, atomic bool) error {
 	var freshlyInstalled []id.RuleID
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, g := range groups {
 		pairID, rulePair, err := d.applyPeerGroup(g)
 		if err != nil {
@@ -264,7 +263,7 @@ func (d *DefaultManager) installPeerGroups(groups []*peerRuleGroup, newRulePairs
 				d.rollbackInstalled(freshlyInstalled)
 				return fmt.Errorf("apply firewall rule: %w", err)
 			}
-			merr = multierror.Append(merr, fmt.Errorf("apply firewall rule: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("apply firewall rule: %w", err))
 			continue
 		}
 		if len(rulePair) == 0 {
@@ -280,7 +279,7 @@ func (d *DefaultManager) installPeerGroups(groups []*peerRuleGroup, newRulePairs
 }
 
 func (d *DefaultManager) rollbackInstalled(pairIDs []id.RuleID) {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, pairID := range pairIDs {
 		// Keep any rule the backend refuses to delete tracked so it is
 		// retried on the next ApplyFiltering instead of leaking in the
@@ -288,7 +287,7 @@ func (d *DefaultManager) rollbackInstalled(pairIDs []id.RuleID) {
 		var remaining []firewall.Rule
 		for _, rule := range d.peerRulesPairs[pairID] {
 			if err := d.firewall.DeleteFilterRule(rule); err != nil {
-				merr = multierror.Append(merr, fmt.Errorf("rule %s: %w", pairID, err))
+				merr = nberrors.Append(merr, fmt.Errorf("rule %s: %w", pairID, err))
 				remaining = append(remaining, rule)
 			}
 		}
@@ -348,7 +347,7 @@ func (d *DefaultManager) applyPeerGroup(g *peerRuleGroup) (id.RuleID, []firewall
 
 func (d *DefaultManager) applyRouteACLs(rules []*mgmProto.RouteFirewallRule, dynamicResolver bool) error {
 	newRouteRules := make(map[id.RuleID]firewall.Rule, len(rules))
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	// Apply new rules - firewall manager will return the existing rule if already present
 	for _, rule := range rules {
@@ -357,7 +356,7 @@ func (d *DefaultManager) applyRouteACLs(rules []*mgmProto.RouteFirewallRule, dyn
 			if errors.Is(err, ErrSourceRangesEmpty) {
 				log.Debugf("skipping empty sources rule with destination %s: %v", rule.Destination, err)
 			} else {
-				merr = multierror.Append(merr, fmt.Errorf("add route rule: %w", err))
+				merr = nberrors.Append(merr, fmt.Errorf("add route rule: %w", err))
 			}
 			continue
 		}
@@ -371,7 +370,7 @@ func (d *DefaultManager) applyRouteACLs(rules []*mgmProto.RouteFirewallRule, dyn
 			continue
 		}
 		if err := d.firewall.DeleteFilterRule(rule); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("delete route rule, will retry: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("delete route rule, will retry: %w", err))
 			newRouteRules[ruleID] = rule
 		}
 	}
@@ -442,7 +441,7 @@ func splitDenyAccept(groups []*peerRuleGroup) (denies, accepts []*peerRuleGroup)
 // carries the tolerable accept-rule failures the caller can log and
 // continue past.
 func groupPeerRules(rules []*mgmProto.FirewallRule) (groups []*peerRuleGroup, denyErr error, err error) {
-	var denyMerr, acceptMerr *multierror.Error
+	var denyMerr, acceptMerr *nberrors.Error
 	byKey := make(map[peerRuleKey]*peerRuleGroup)
 	order := make([]peerRuleKey, 0)
 
@@ -450,9 +449,9 @@ func groupPeerRules(rules []*mgmProto.FirewallRule) (groups []*peerRuleGroup, de
 		srcs, decErr := extractRuleSources(r)
 		if decErr != nil {
 			if r.Action == mgmProto.RuleAction_DROP {
-				denyMerr = multierror.Append(denyMerr, decErr)
+				denyMerr = nberrors.Append(denyMerr, decErr)
 			} else {
-				acceptMerr = multierror.Append(acceptMerr, decErr)
+				acceptMerr = nberrors.Append(acceptMerr, decErr)
 			}
 			continue
 		}

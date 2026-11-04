@@ -5,7 +5,6 @@ package iptables
 import (
 	"fmt"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -85,7 +84,7 @@ func (r *family) addJumpRules() error {
 }
 
 func (r *family) setupDataPlaneMark() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	preRule := []string{
 		"-i", r.wgIface.Name(),
 		"-m", "conntrack", "--ctstate", "NEW",
@@ -93,7 +92,7 @@ func (r *family) setupDataPlaneMark() error {
 	}
 
 	if err := r.iptablesClient.AppendUnique(tableMangle, chainPrerouting, preRule...); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("add mangle prerouting rule: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("add mangle prerouting rule: %w", err))
 	} else {
 		r.rules[markManglePre] = preRule
 	}
@@ -105,7 +104,7 @@ func (r *family) setupDataPlaneMark() error {
 	}
 
 	if err := r.iptablesClient.AppendUnique(tableMangle, chainPostrouting, postRule...); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("add mangle postrouting rule: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("add mangle postrouting rule: %w", err))
 	} else {
 		r.rules[markManglePost] = postRule
 	}
@@ -215,13 +214,13 @@ func (r *family) createDefaultChains() error {
 }
 
 func (r *family) cleanUpDefaultForwardRules() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	// cleanJumpRules removes the OUTPUT jump to NETBIRD-NAT-OUTPUT among
 	// the others, so the chain below deletes cleanly instead of failing
 	// with "device or resource busy".
 	if err := r.cleanJumpRules(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("clean jump rules: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("clean jump rules: %w", err))
 	}
 
 	for _, chainInfo := range []struct {
@@ -238,12 +237,12 @@ func (r *family) cleanUpDefaultForwardRules() error {
 	} {
 		ok, err := r.iptablesClient.ChainExists(chainInfo.table, chainInfo.chain)
 		if err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("check chain %s in table %s: %w", chainInfo.chain, chainInfo.table, err))
+			merr = nberrors.Append(merr, fmt.Errorf("check chain %s in table %s: %w", chainInfo.chain, chainInfo.table, err))
 			continue
 		}
 		if ok {
 			if err := r.iptablesClient.ClearAndDeleteChain(chainInfo.table, chainInfo.chain); err != nil {
-				merr = multierror.Append(merr, fmt.Errorf("clear and delete chain %s in table %s: %w", chainInfo.chain, chainInfo.table, err))
+				merr = nberrors.Append(merr, fmt.Errorf("clear and delete chain %s in table %s: %w", chainInfo.chain, chainInfo.table, err))
 			}
 		}
 	}
@@ -262,7 +261,7 @@ func (r *family) cleanJumpRules() error {
 		jumpNATOutput: {tableNat, chainOutput, chainNATOutput},
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for ruleID, loc := range locations {
 		rule, exists := r.rules[ruleID]
 		if !exists {
@@ -271,7 +270,7 @@ func (r *family) cleanJumpRules() error {
 			// jump to it so the chain can be deleted.
 			ok, err := r.iptablesClient.ChainExists(loc.table, loc.target)
 			if err != nil {
-				merr = multierror.Append(merr, fmt.Errorf("check chain %s in table %s: %w", loc.target, loc.table, err))
+				merr = nberrors.Append(merr, fmt.Errorf("check chain %s in table %s: %w", loc.target, loc.table, err))
 				continue
 			}
 			if !ok {
@@ -280,7 +279,7 @@ func (r *family) cleanJumpRules() error {
 			rule = jumpRuleSpec(loc.target)
 		}
 		if err := r.iptablesClient.DeleteIfExists(loc.table, loc.chain, rule...); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("delete rule from chain %s in table %s: %w", loc.chain, loc.table, err))
+			merr = nberrors.Append(merr, fmt.Errorf("delete rule from chain %s in table %s: %w", loc.chain, loc.table, err))
 			continue
 		}
 		delete(r.rules, ruleID)
@@ -295,15 +294,15 @@ func jumpRuleSpec(target string) []string {
 }
 
 func (r *family) cleanAclChains() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if err := r.cleanInputAclChain(); err != nil {
-		merr = multierror.Append(merr, err)
+		merr = nberrors.Append(merr, err)
 	}
 
 	for _, rule := range r.entries[mangleForwardKey] {
 		if err := r.iptablesClient.DeleteIfExists(tableMangle, chainForward, rule...); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("delete mangle %s guard rule %v: %w", chainForward, rule, err))
+			merr = nberrors.Append(merr, fmt.Errorf("delete mangle %s guard rule %v: %w", chainForward, rule, err))
 		}
 	}
 
@@ -319,31 +318,31 @@ func (r *family) cleanInputAclChain() error {
 		return nil
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, rule := range r.entries[chainInput] {
 		if err := r.iptablesClient.DeleteIfExists(tableFilter, chainInput, rule...); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("delete %s rule %v: %w", chainInput, rule, err))
+			merr = nberrors.Append(merr, fmt.Errorf("delete %s rule %v: %w", chainInput, rule, err))
 		}
 	}
 
 	for _, rule := range r.entries[chainForward] {
 		if err := r.iptablesClient.DeleteIfExists(tableFilter, chainForward, rule...); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("delete %s rule %v: %w", chainForward, rule, err))
+			merr = nberrors.Append(merr, fmt.Errorf("delete %s rule %v: %w", chainForward, rule, err))
 		}
 	}
 
 	if err := r.iptablesClient.ClearAndDeleteChain(tableFilter, chainACLInput); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("clear and delete %s chain: %w", chainACLInput, err))
+		merr = nberrors.Append(merr, fmt.Errorf("clear and delete %s chain: %w", chainACLInput, err))
 	}
 
 	return nberrors.FormatErrorOrNil(merr)
 }
 
 func (r *family) cleanupDataPlaneMark() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	if preRule, exists := r.rules[markManglePre]; exists {
 		if err := r.iptablesClient.DeleteIfExists(tableMangle, chainPrerouting, preRule...); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove mangle prerouting rule: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove mangle prerouting rule: %w", err))
 		} else {
 			delete(r.rules, markManglePre)
 		}
@@ -351,7 +350,7 @@ func (r *family) cleanupDataPlaneMark() error {
 
 	if postRule, exists := r.rules[markManglePost]; exists {
 		if err := r.iptablesClient.DeleteIfExists(tableMangle, chainPostrouting, postRule...); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove mangle postrouting rule: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove mangle postrouting rule: %w", err))
 		} else {
 			delete(r.rules, markManglePost)
 		}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/go-multierror"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -125,20 +124,20 @@ func RestoreResidualState(ctx context.Context, statePath string) error {
 	// register the states we are interested in restoring
 	registerStates(mgr)
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if err := mgr.PerformCleanup(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("perform cleanup: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("perform cleanup: %w", err))
 	}
 
 	// persist state regardless of cleanup outcome. It could've succeeded partially
 	if err := mgr.PersistState(ctx); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("persist state: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("persist state: %w", err))
 	}
 
 	// clean up any remaining routes independently of the state file
 	if err := systemops.New(nil, nil).FlushMarkedRoutes(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("flush marked routes: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("flush marked routes: %w", err))
 	}
 
 	return nberrors.FormatErrorOrNil(merr)

@@ -17,7 +17,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/netbirdio/ice/v4"
 	"github.com/pion/stun/v3"
 	log "github.com/sirupsen/logrus"
@@ -827,12 +826,12 @@ func (e *Engine) blockLanAccess() {
 		return
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	// TODO: keep this updated
 	toBlock, err := getInterfacePrefixes()
 	if err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("get local addresses: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("get local addresses: %w", err))
 	}
 
 	log.Infof("blocking route LAN access for networks: %v", toBlock)
@@ -852,7 +851,7 @@ func (e *Engine) blockLanAccess() {
 			nil,
 			firewallManager.ActionDrop,
 		); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("add fw rule for network %s: %w", network, err))
+			merr = nberrors.Append(merr, fmt.Errorf("add fw rule for network %s: %w", network, err))
 		}
 	}
 
@@ -2830,23 +2829,23 @@ func getInterfacePrefixes() ([]netip.Prefix, error) {
 	}
 
 	var prefixes []netip.Prefix
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	for _, iface := range ifaces {
 		addrs, err := iface.Addrs()
 		if err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("get addresses for interface %s: %w", iface.Name, err))
+			merr = nberrors.Append(merr, fmt.Errorf("get addresses for interface %s: %w", iface.Name, err))
 			continue
 		}
 		for _, addr := range addrs {
 			ipNet, ok := addr.(*net.IPNet)
 			if !ok {
-				merr = multierror.Append(merr, fmt.Errorf("cast address to IPNet: %v", addr))
+				merr = nberrors.Append(merr, fmt.Errorf("cast address to IPNet: %v", addr))
 				continue
 			}
 			addr, ok := netip.AddrFromSlice(ipNet.IP)
 			if !ok {
-				merr = multierror.Append(merr, fmt.Errorf("cast IPNet to netip.Addr: %v", ipNet.IP))
+				merr = nberrors.Append(merr, fmt.Errorf("cast IPNet to netip.Addr: %v", ipNet.IP))
 				continue
 			}
 			ones, _ := ipNet.Mask.Size()

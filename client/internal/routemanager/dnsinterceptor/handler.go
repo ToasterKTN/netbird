@@ -13,7 +13,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
 
@@ -84,19 +83,19 @@ func (d *DnsInterceptor) AddRoute(context.Context) error {
 func (d *DnsInterceptor) RemoveRoute() error {
 	d.mu.Lock()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for domain, prefixes := range d.interceptedDomains {
 		for _, prefix := range prefixes {
 			// Routes should use fake IPs
 			routePrefix := d.transformRealToFakePrefix(prefix)
 			if _, err := d.routeRefCounter.Decrement(routePrefix); err != nil {
-				merr = multierror.Append(merr, fmt.Errorf("remove dynamic route for IP %s: %v", routePrefix, err))
+				merr = nberrors.Append(merr, fmt.Errorf("remove dynamic route for IP %s: %v", routePrefix, err))
 			}
 
 			// AllowedIPs should use real IPs
 			if d.currentPeerKey != "" {
 				if _, err := d.allowedIPsRefcounter.Decrement(prefix, d.currentPeerKey); err != nil {
-					merr = multierror.Append(merr, fmt.Errorf("remove allowed IP %s: %v", prefix, err))
+					merr = nberrors.Append(merr, fmt.Errorf("remove allowed IP %s: %v", prefix, err))
 				}
 			}
 		}
@@ -183,12 +182,12 @@ func (d *DnsInterceptor) AddAllowedIPs(peerKey string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for domain, prefixes := range d.interceptedDomains {
 		for _, prefix := range prefixes {
 			// AllowedIPs use real IPs
 			if err := d.addAllowedIPForPrefix(prefix, peerKey, domain); err != nil {
-				merr = multierror.Append(merr, err)
+				merr = nberrors.Append(merr, err)
 			}
 		}
 	}
@@ -201,12 +200,12 @@ func (d *DnsInterceptor) RemoveAllowedIPs() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, prefixes := range d.interceptedDomains {
 		for _, prefix := range prefixes {
 			// AllowedIPs use real IPs
 			if _, err := d.allowedIPsRefcounter.Decrement(prefix, d.currentPeerKey); err != nil {
-				merr = multierror.Append(merr, fmt.Errorf("remove allowed IP %s: %v", prefix, err))
+				merr = nberrors.Append(merr, fmt.Errorf("remove allowed IP %s: %v", prefix, err))
 			}
 		}
 	}
@@ -393,7 +392,7 @@ func (d *DnsInterceptor) updateDomainPrefixes(resolvedDomain, originalDomain dom
 	oldPrefixes := d.interceptedDomains[resolvedDomain]
 	toAdd, toRemove := determinePrefixChanges(oldPrefixes, newPrefixes)
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	var dnatMappings map[netip.Addr]netip.Addr
 
 	// Handle DNAT mappings for new prefixes
@@ -413,7 +412,7 @@ func (d *DnsInterceptor) updateDomainPrefixes(resolvedDomain, originalDomain dom
 	// Add new prefixes
 	for _, prefix := range toAdd {
 		if err := d.addRouteAndAllowedIP(prefix, resolvedDomain); err != nil {
-			merr = multierror.Append(merr, err)
+			merr = nberrors.Append(merr, err)
 		}
 	}
 
@@ -425,11 +424,11 @@ func (d *DnsInterceptor) updateDomainPrefixes(resolvedDomain, originalDomain dom
 			// Routes use fake IPs
 			routePrefix := d.transformRealToFakePrefix(prefix)
 			if _, err := d.routeRefCounter.Decrement(routePrefix); err != nil {
-				merr = multierror.Append(merr, fmt.Errorf("remove route for IP %s: %v", routePrefix, err))
+				merr = nberrors.Append(merr, fmt.Errorf("remove route for IP %s: %v", routePrefix, err))
 			}
 			// AllowedIPs use real IPs
 			if err := d.removeAllowedIP(prefix); err != nil {
-				merr = multierror.Append(merr, err)
+				merr = nberrors.Append(merr, err)
 			}
 		}
 

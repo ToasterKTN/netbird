@@ -9,7 +9,6 @@ import (
 	"net/netip"
 	"sync"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -142,10 +141,10 @@ func callWriteHooks(id hooks.ConnectionID, seenAddrs *sync.Map, addr net.Addr) e
 
 	log.Debugf("Listener resolved IP for %s: %s", addr, prefix)
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, hook := range writeHooks {
 		if err := hook(id, prefix); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("execute write hook: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("execute write hook: %w", err))
 		}
 	}
 

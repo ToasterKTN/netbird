@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/pion/transport/v3"
 	log "github.com/sirupsen/logrus"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -205,10 +204,10 @@ func (w *WGIface) RemoveAllowedIP(peerKey string, allowedIP netip.Prefix) error 
 func (w *WGIface) Close() error {
 	w.mu.Lock()
 
-	var result *multierror.Error
+	var result *errors.Error
 
 	if err := w.wgProxyFactory.Free(); err != nil {
-		result = multierror.Append(result, fmt.Errorf("failed to free WireGuard proxy: %w", err))
+		result = errors.Append(result, fmt.Errorf("failed to free WireGuard proxy: %w", err))
 	}
 
 	// Release w.mu before calling w.tun.Close(): the underlying
@@ -220,7 +219,7 @@ func (w *WGIface) Close() error {
 	w.mu.Unlock()
 
 	if err := tun.Close(); err != nil {
-		result = multierror.Append(result, fmt.Errorf("failed to close wireguard interface %s: %w", w.Name(), err))
+		result = errors.Append(result, fmt.Errorf("failed to close wireguard interface %s: %w", w.Name(), err))
 	}
 
 	// The OS owns this interface (iOS utun) and the next start reuses it, so do not wait
@@ -232,7 +231,7 @@ func (w *WGIface) Close() error {
 	if err := w.waitUntilRemoved(); err != nil {
 		log.Warnf("failed to remove WireGuard interface %s: %v", w.Name(), err)
 		if err := w.Destroy(); err != nil {
-			result = multierror.Append(result, fmt.Errorf("failed to remove WireGuard interface %s: %w", w.Name(), err))
+			result = errors.Append(result, fmt.Errorf("failed to remove WireGuard interface %s: %w", w.Name(), err))
 			return errors.FormatErrorOrNil(result)
 		}
 		log.Infof("interface %s successfully removed", w.Name())

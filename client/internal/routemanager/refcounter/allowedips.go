@@ -7,8 +7,6 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/hashicorp/go-multierror"
-
 	nberrors "github.com/netbirdio/netbird/client/errors"
 )
 
@@ -153,14 +151,14 @@ func (rm *AllowedIPsRefCounter) Flush() error {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for prefix, e := range rm.entries {
 		if e.active == "" {
 			continue
 		}
 		logCallerF("Flushing allowed IP for prefix %v peer %s", prefix, e.active)
 		if err := rm.remove(prefix, e.active); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove allowed IP %v for peer %s: %w", prefix, e.active, err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove allowed IP %v for peer %s: %w", prefix, e.active, err))
 		}
 	}
 
@@ -179,11 +177,11 @@ func (rm *AllowedIPsRefCounter) ReapplyMatching(pred func(out string) bool, appl
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for prefix, e := range rm.entries {
 		if e.active != "" && pred(e.active) {
 			if err := apply(prefix); err != nil {
-				merr = multierror.Append(merr, err)
+				merr = nberrors.Append(merr, err)
 			}
 		}
 	}

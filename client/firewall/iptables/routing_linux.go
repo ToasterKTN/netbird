@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -105,13 +104,13 @@ func (r *family) SetLegacyManagement(isLegacy bool) {
 
 // RemoveAllLegacyRouteRules removes all legacy routing rules for mgmt servers pre route acls
 func (r *family) RemoveAllLegacyRouteRules() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for k, rule := range r.rules {
 		if !strings.HasPrefix(string(k), firewall.ForwardingFormatPrefix) {
 			continue
 		}
 		if err := r.iptablesClient.DeleteIfExists(tableFilter, chainRTFwdIn, rule...); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove legacy forwarding rule: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove legacy forwarding rule: %w", err))
 		} else {
 			delete(r.rules, k)
 		}

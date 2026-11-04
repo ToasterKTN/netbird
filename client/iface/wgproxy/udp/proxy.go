@@ -10,7 +10,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	cerrors "github.com/netbirdio/netbird/client/errors"
@@ -167,7 +166,7 @@ func (p *WGUDPProxy) CloseConn() error {
 }
 
 func (p *WGUDPProxy) close() error {
-	var result *multierror.Error
+	var result *cerrors.Error
 
 	p.closeMu.Lock()
 	defer p.closeMu.Unlock()
@@ -188,16 +187,16 @@ func (p *WGUDPProxy) close() error {
 	p.pausedCond.L.Unlock()
 
 	if err := p.remoteConn.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
-		result = multierror.Append(result, fmt.Errorf("remote conn: %s", err))
+		result = cerrors.Append(result, fmt.Errorf("remote conn: %s", err))
 	}
 
 	if err := p.localConn.Close(); err != nil {
-		result = multierror.Append(result, fmt.Errorf("local conn: %s", err))
+		result = cerrors.Append(result, fmt.Errorf("local conn: %s", err))
 	}
 
 	if p.srcFakerConn != nil {
 		if err := p.srcFakerConn.Close(); err != nil {
-			result = multierror.Append(result, fmt.Errorf("src faker raw conn: %s", err))
+			result = cerrors.Append(result, fmt.Errorf("src faker raw conn: %s", err))
 		}
 	}
 

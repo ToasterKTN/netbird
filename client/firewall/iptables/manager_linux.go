@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/coreos/go-iptables/iptables"
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -248,16 +247,16 @@ func (m *Manager) RemoveNatRule(pair firewall.RouterPair) error {
 		return m.family6.RemoveNatRule(pair)
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if err := m.family4.RemoveNatRule(pair); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("remove v4 NAT rule: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("remove v4 NAT rule: %w", err))
 	}
 
 	if m.hasIPv6() && pair.Dynamic {
 		v6Pair := firewall.ToV6NatPair(pair)
 		if err := m.family6.RemoveNatRule(v6Pair); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove v6 NAT rule: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove v6 NAT rule: %w", err))
 		}
 	}
 
@@ -282,28 +281,28 @@ func (m *Manager) Close(stateManager *statemanager.Manager) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if m.hasIPv6() {
 		if err := m.family6.Reset(); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("reset v6 family: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("reset v6 family: %w", err))
 		}
 	}
 
 	if err := m.family4.Reset(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("reset family: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("reset family: %w", err))
 	}
 
 	// Appending to merr intentionally blocks DeleteState below so ShutdownState
 	// stays persisted and the crash-recovery path retries firewalld cleanup.
 	if err := firewalld.UntrustInterface(m.wgIface.Name()); err != nil {
-		merr = multierror.Append(merr, err)
+		merr = nberrors.Append(merr, err)
 	}
 
 	// attempt to delete state only if all other operations succeeded
 	if merr == nil {
 		if err := stateManager.DeleteState(&ShutdownState{}); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("delete state: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("delete state: %w", err))
 		}
 	}
 

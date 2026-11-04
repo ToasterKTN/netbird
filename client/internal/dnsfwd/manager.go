@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -132,27 +131,27 @@ func (m *Manager) Stop(ctx context.Context) error {
 		return nil
 	}
 
-	var mErr *multierror.Error
+	var mErr *nberrors.Error
 
 	localAddr := m.wgIface.Address().IP
 	if localAddr.IsValid() && m.firewall != nil {
 		if err := m.firewall.RemoveInboundDNAT(localAddr, firewall.ProtocolUDP, nbdns.ForwarderClientPort, m.serverPort); err != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf("remove DNS UDP DNAT rule: %w", err))
+			mErr = nberrors.Append(mErr, fmt.Errorf("remove DNS UDP DNAT rule: %w", err))
 		}
 
 		if err := m.firewall.RemoveInboundDNAT(localAddr, firewall.ProtocolTCP, nbdns.ForwarderClientPort, m.serverPort); err != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf("remove DNS TCP DNAT rule: %w", err))
+			mErr = nberrors.Append(mErr, fmt.Errorf("remove DNS TCP DNAT rule: %w", err))
 		}
 	}
 
 	m.unregisterNetstackServices()
 
 	if err := m.dropDNSFirewall(); err != nil {
-		mErr = multierror.Append(mErr, err)
+		mErr = nberrors.Append(mErr, err)
 	}
 
 	if err := m.dnsForwarder.Close(ctx); err != nil {
-		mErr = multierror.Append(mErr, err)
+		mErr = nberrors.Append(mErr, err)
 	}
 
 	m.dnsForwarder = nil
@@ -221,15 +220,15 @@ func (m *Manager) unregisterNetstackServices() {
 }
 
 func (m *Manager) dropDNSFirewall() error {
-	var mErr *multierror.Error
+	var mErr *nberrors.Error
 	for _, rule := range m.fwRules {
 		if err := m.firewall.DeleteFilterRule(rule); err != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf("failed to delete DNS router rules, err: %v", err))
+			mErr = nberrors.Append(mErr, fmt.Errorf("failed to delete DNS router rules, err: %v", err))
 		}
 	}
 	for _, rule := range m.tcpRules {
 		if err := m.firewall.DeleteFilterRule(rule); err != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf("failed to delete DNS router rules, err: %v", err))
+			mErr = nberrors.Append(mErr, fmt.Errorf("failed to delete DNS router rules, err: %v", err))
 		}
 	}
 

@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
 
@@ -179,11 +178,11 @@ func (s *serviceViaListener) removeDNAT() error {
 		return nil
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	var remaining []dnatRule
 	for _, rule := range s.dnatRules {
 		if err := s.firewall.RemoveOutputDNAT(rule.ip, rule.protocol, DefaultPort, rule.port); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove DNS %s DNAT rule for %s:%d: %w",
+			merr = nberrors.Append(merr, fmt.Errorf("remove DNS %s DNAT rule for %s:%d: %w",
 				rule.protocol, rule.ip, rule.port, err))
 			remaining = append(remaining, rule)
 		}
@@ -197,13 +196,13 @@ func (s *serviceViaListener) Stop() error {
 	s.listenerFlagLock.Lock()
 	defer s.listenerFlagLock.Unlock()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	// Redirects are removed even when the listener is already stopped, so that
 	// a removal which failed earlier is retried instead of leaving port 53
 	// pointing at a resolver that no longer listens.
 	if err := s.removeDNAT(); err != nil {
-		merr = multierror.Append(merr, err)
+		merr = nberrors.Append(merr, err)
 	}
 
 	if !s.listenerIsRunning {
@@ -215,11 +214,11 @@ func (s *serviceViaListener) Stop() error {
 	defer cancel()
 
 	if err := s.server.ShutdownContext(ctx); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("stop DNS UDP server: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("stop DNS UDP server: %w", err))
 	}
 
 	if err := s.tcpServer.ShutdownContext(ctx); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("stop DNS TCP server: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("stop DNS TCP server: %w", err))
 	}
 
 	return nberrors.FormatErrorOrNil(merr)

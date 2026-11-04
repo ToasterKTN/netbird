@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
 
@@ -455,12 +454,12 @@ func (m *Manager) PerformCleanup() error {
 		return nil
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	// Process each state in the file
 	for name, rawState := range rawStates {
 		if err := m.cleanupSingleState(name, rawState); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("%s: %w", name, err))
+			merr = nberrors.Append(merr, fmt.Errorf("%s: %w", name, err))
 		}
 	}
 

@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows/registry"
 
@@ -153,11 +152,11 @@ func newHostManager(wgInterface WGIface) (*registryConfigurator, error) {
 func (r *registryConfigurator) captureOriginalNameservers() ([]netip.Addr, error) {
 	seen := make(map[netip.Addr]struct{})
 	var out []netip.Addr
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, root := range []string{InterfaceConfigPath, InterfaceConfigPathV6} {
 		addrs, err := r.captureFromTcpipRoot(root)
 		if err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("%s: %w", root, err))
+			merr = nberrors.Append(merr, fmt.Errorf("%s: %w", root, err))
 			continue
 		}
 		for _, addr := range addrs {
@@ -244,14 +243,14 @@ func (r *registryConfigurator) supportCustomPort() bool {
 }
 
 func (r *registryConfigurator) configureInterface() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if err := r.disableDNSRegistrationForInterface(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("disable DNS registration: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("disable DNS registration: %w", err))
 	}
 
 	if err := r.disableWINSForInterface(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("disable WINS: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("disable WINS: %w", err))
 	}
 
 	return nberrors.FormatErrorOrNil(merr)
@@ -264,18 +263,18 @@ func (r *registryConfigurator) disableDNSRegistrationForInterface() error {
 	}
 	defer closer(regKey)
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if err := regKey.SetDWordValue(disableDynamicUpdateKey, 1); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("set %s: %w", disableDynamicUpdateKey, err))
+		merr = nberrors.Append(merr, fmt.Errorf("set %s: %w", disableDynamicUpdateKey, err))
 	}
 
 	if err := regKey.SetDWordValue(registrationEnabledKey, 0); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("set %s: %w", registrationEnabledKey, err))
+		merr = nberrors.Append(merr, fmt.Errorf("set %s: %w", registrationEnabledKey, err))
 	}
 
 	if err := regKey.SetDWordValue(maxNumberOfAddressesToRegisterKey, 0); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("set %s: %w", maxNumberOfAddressesToRegisterKey, err))
+		merr = nberrors.Append(merr, fmt.Errorf("set %s: %w", maxNumberOfAddressesToRegisterKey, err))
 	}
 
 	if merr == nil || len(merr.Errors) == 0 {
@@ -626,25 +625,25 @@ func (r *registryConfigurator) restoreHostDNS() error {
 // disconnect, and a rule left behind keeps resolving names over an interface
 // that is gone, until reboot discards the volatile key.
 func (r *registryConfigurator) removeDNSMatchPolicies() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	for _, root := range []string{DNSPolicyConfigRoot, GPODNSPolicyConfigRoot} {
 		names, err := listNRPTRuleKeys(root)
 		if err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("list rule keys under %s: %w", root, err))
+			merr = nberrors.Append(merr, fmt.Errorf("list rule keys under %s: %w", root, err))
 			continue
 		}
 
 		for _, name := range names {
 			path := root + `\` + name
 			if err := removeRegistryKeyFromDNSPolicyConfig(path); err != nil {
-				merr = multierror.Append(merr, fmt.Errorf("remove entry %s: %w", path, err))
+				merr = nberrors.Append(merr, fmt.Errorf("remove entry %s: %w", path, err))
 			}
 		}
 	}
 
 	if err := refreshGroupPolicy(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("refresh group policy: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("refresh group policy: %w", err))
 	}
 
 	return nberrors.FormatErrorOrNil(merr)

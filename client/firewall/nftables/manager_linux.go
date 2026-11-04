@@ -10,7 +10,6 @@ import (
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -129,15 +128,15 @@ func (m *Manager) reconcileExternalChains() error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	if m.family4 != nil {
 		if err := m.family4.acceptExternalChainsRules(true); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("v4: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("v4: %w", err))
 		}
 	}
 	if m.hasIPv6() {
 		if err := m.family6.acceptExternalChainsRules(true); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("v6: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("v6: %w", err))
 		}
 	}
 	return nberrors.FormatErrorOrNil(merr)
@@ -324,16 +323,16 @@ func (m *Manager) RemoveNatRule(pair firewall.RouterPair) error {
 		return m.family6.RemoveNatRule(pair)
 	}
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if err := m.family4.RemoveNatRule(pair); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("remove v4 NAT rule: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("remove v4 NAT rule: %w", err))
 	}
 
 	if m.hasIPv6() && pair.Dynamic {
 		v6Pair := firewall.ToV6NatPair(pair)
 		if err := m.family6.RemoveNatRule(v6Pair); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove v6 NAT rule: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove v6 NAT rule: %w", err))
 		}
 	}
 
@@ -358,28 +357,28 @@ func (m *Manager) Close(stateManager *statemanager.Manager) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if err := m.family4.Reset(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("reset family: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("reset family: %w", err))
 	}
 
 	if m.hasIPv6() {
 		if err := m.family6.Reset(); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("reset v6 family: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("reset v6 family: %w", err))
 		}
 	}
 
 	if err := m.cleanupNetbirdTables(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("cleanup netbird tables: %v", err))
+		merr = nberrors.Append(merr, fmt.Errorf("cleanup netbird tables: %v", err))
 	}
 
 	if err := m.rConn.Flush(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf(flushError, err))
+		merr = nberrors.Append(merr, fmt.Errorf(flushError, err))
 	}
 
 	if err := stateManager.DeleteState(&ShutdownState{}); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("delete state: %v", err))
+		merr = nberrors.Append(merr, fmt.Errorf("delete state: %v", err))
 	}
 
 	return nberrors.FormatErrorOrNil(merr)

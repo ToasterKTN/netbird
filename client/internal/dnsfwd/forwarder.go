@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
 
@@ -256,16 +255,16 @@ func (f *DNSForwarder) Close(ctx context.Context) error {
 	udpConn, tcpLn := f.udpConn, f.tcpLn
 	f.mutex.Unlock()
 
-	var result *multierror.Error
+	var result *nberrors.Error
 
 	if dnsServer != nil {
 		if err := shutdownServer(ctx, dnsServer); err != nil {
-			result = multierror.Append(result, fmt.Errorf("UDP shutdown: %w", err))
+			result = nberrors.Append(result, fmt.Errorf("UDP shutdown: %w", err))
 		}
 	}
 	if tcpServer != nil {
 		if err := shutdownServer(ctx, tcpServer); err != nil {
-			result = multierror.Append(result, fmt.Errorf("TCP shutdown: %w", err))
+			result = nberrors.Append(result, fmt.Errorf("TCP shutdown: %w", err))
 		}
 	}
 
@@ -459,10 +458,10 @@ func (f *DNSForwarder) updateInternalState(ips []netip.Addr, mostSpecificResId r
 }
 
 func (f *DNSForwarder) updateFirewall(matchingEntries []*ForwarderEntry, prefixes []netip.Prefix) {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, entry := range matchingEntries {
 		if err := f.firewall.UpdateSet(entry.Set, prefixes); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("update set for domain=%s: %w", entry.Domain, err))
+			merr = nberrors.Append(merr, fmt.Errorf("update set for domain=%s: %w", entry.Domain, err))
 		}
 	}
 	if merr != nil {

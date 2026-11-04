@@ -11,7 +11,6 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -139,24 +138,24 @@ func (r *SysOps) CleanupRouting(stateManager *statemanager.Manager, advancedRout
 		return r.cleanupRefCounter(stateManager)
 	}
 
-	var result *multierror.Error
+	var result *nberrors.Error
 
 	if err := flushRoutes(NetbirdVPNTableID, netlink.FAMILY_V4); err != nil {
-		result = multierror.Append(result, fmt.Errorf("flush routes v4: %w", err))
+		result = nberrors.Append(result, fmt.Errorf("flush routes v4: %w", err))
 	}
 	if err := flushRoutes(NetbirdVPNTableID, netlink.FAMILY_V6); err != nil {
-		result = multierror.Append(result, fmt.Errorf("flush routes v6: %w", err))
+		result = nberrors.Append(result, fmt.Errorf("flush routes v6: %w", err))
 	}
 
 	rules := getSetupRules()
 	for _, rule := range rules {
 		if err := removeRule(rule); err != nil {
-			result = multierror.Append(result, fmt.Errorf("%s: %w", rule.description, err))
+			result = nberrors.Append(result, fmt.Errorf("%s: %w", rule.description, err))
 		}
 	}
 
 	if err := sysctl.Cleanup(originalSysctl); err != nil {
-		result = multierror.Append(result, fmt.Errorf("cleanup sysctl: %w", err))
+		result = nberrors.Append(result, fmt.Errorf("cleanup sysctl: %w", err))
 	}
 	originalSysctl = nil
 	sysctlFailed = false
@@ -744,7 +743,7 @@ func flushRoutes(tableID, family int) error {
 		return fmt.Errorf("list routes from table %d: %w", tableID, err)
 	}
 
-	var result *multierror.Error
+	var result *nberrors.Error
 	for i := range routes {
 		route := routes[i]
 		// unreachable default routes don't come back with Dst set
@@ -756,7 +755,7 @@ func flushRoutes(tableID, family int) error {
 			}
 		}
 		if err := netlink.RouteDel(&routes[i]); err != nil && !isOpErr(err) {
-			result = multierror.Append(result, fmt.Errorf("failed to delete route %v from table %d: %w", routes[i], tableID, err))
+			result = nberrors.Append(result, fmt.Errorf("failed to delete route %v from table %d: %w", routes[i], tableID, err))
 		}
 	}
 

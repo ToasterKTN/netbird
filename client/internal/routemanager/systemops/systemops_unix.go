@@ -14,7 +14,6 @@ import (
 	"unsafe"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/route"
 	"golang.org/x/sys/unix"
@@ -64,20 +63,20 @@ func (r *SysOps) CleanupRouting(stateManager *statemanager.Manager, advancedRout
 // On darwin it also flushes residual RTF_IFSCOPE scoped default routes so a
 // crashed prior session can't leave crud in the table.
 func (r *SysOps) FlushMarkedRoutes() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if err := r.flushPlatformExtras(); err != nil {
-		merr = multierror.Append(merr, fmt.Errorf("flush platform extras: %w", err))
+		merr = nberrors.Append(merr, fmt.Errorf("flush platform extras: %w", err))
 	}
 
 	rib, err := retryFetchRIB()
 	if err != nil {
-		return nberrors.FormatErrorOrNil(multierror.Append(merr, fmt.Errorf("fetch routing table: %w", err)))
+		return nberrors.FormatErrorOrNil(nberrors.Append(merr, fmt.Errorf("fetch routing table: %w", err)))
 	}
 
 	msgs, err := route.ParseRIB(route.RIBTypeRoute, rib)
 	if err != nil {
-		return nberrors.FormatErrorOrNil(multierror.Append(merr, fmt.Errorf("parse routing table: %w", err)))
+		return nberrors.FormatErrorOrNil(nberrors.Append(merr, fmt.Errorf("parse routing table: %w", err)))
 	}
 
 	flushedCount := 0
@@ -108,7 +107,7 @@ func (r *SysOps) FlushMarkedRoutes() error {
 		}
 
 		if err := r.removeFromRouteTable(routeInfo.Dst, nexthop); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("remove route %s: %w", routeInfo.Dst, err))
+			merr = nberrors.Append(merr, fmt.Errorf("remove route %s: %w", routeInfo.Dst, err))
 			continue
 		}
 

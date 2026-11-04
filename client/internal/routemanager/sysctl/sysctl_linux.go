@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -32,25 +31,25 @@ type iface interface {
 // Setup configures sysctl settings for RP filtering and source validation.
 func Setup(wgIface iface) (map[string]int, error) {
 	keys := map[string]int{}
-	var result *multierror.Error
+	var result *nberrors.Error
 
 	oldVal, err := Set(srcValidMarkPath, 1, false)
 	if err != nil {
-		result = multierror.Append(result, err)
+		result = nberrors.Append(result, err)
 	} else {
 		keys[srcValidMarkPath] = oldVal
 	}
 
 	oldVal, err = Set(rpFilterPath, 2, true)
 	if err != nil {
-		result = multierror.Append(result, err)
+		result = nberrors.Append(result, err)
 	} else {
 		keys[rpFilterPath] = oldVal
 	}
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		result = multierror.Append(result, fmt.Errorf("list interfaces: %w", err))
+		result = nberrors.Append(result, fmt.Errorf("list interfaces: %w", err))
 	}
 
 	for _, intf := range interfaces {
@@ -61,7 +60,7 @@ func Setup(wgIface iface) (map[string]int, error) {
 		i := fmt.Sprintf(rpFilterInterfacePath, EscapeInterfaceName(intf.Name))
 		oldVal, err := Set(i, 2, true)
 		if err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		} else {
 			keys[i] = oldVal
 		}
@@ -109,12 +108,12 @@ func Set(key string, desiredValue int, onlyIfOne bool) (int, error) {
 
 // Cleanup resets sysctl settings to their original values.
 func Cleanup(originalSettings map[string]int) error {
-	var result *multierror.Error
+	var result *nberrors.Error
 
 	for key, value := range originalSettings {
 		_, err := Set(key, value, false)
 		if err != nil {
-			result = multierror.Append(result, err)
+			result = nberrors.Append(result, err)
 		}
 	}
 

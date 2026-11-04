@@ -8,7 +8,6 @@ import (
 	"net/netip"
 
 	"github.com/coreos/go-iptables/iptables"
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -191,22 +190,22 @@ func (r *family) init(stateManager *statemanager.Manager) error {
 // chains are still referenced by FORWARD jumps installed during
 // seedInitialEntries; deleting them first would trip EBUSY.
 func (r *family) Reset() error {
-	var merr *multierror.Error
+	var merr *nberrors.Error
 
 	if err := r.cleanAclChains(); err != nil {
-		merr = multierror.Append(merr, err)
+		merr = nberrors.Append(merr, err)
 	}
 
 	if err := r.cleanUpDefaultForwardRules(); err != nil {
-		merr = multierror.Append(merr, err)
+		merr = nberrors.Append(merr, err)
 	}
 
 	if err := r.ipsetCounter.Flush(); err != nil {
-		merr = multierror.Append(merr, err)
+		merr = nberrors.Append(merr, err)
 	}
 
 	if err := r.cleanupDataPlaneMark(); err != nil {
-		merr = multierror.Append(merr, err)
+		merr = nberrors.Append(merr, err)
 	}
 
 	clear(r.rules)

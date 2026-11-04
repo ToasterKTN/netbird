@@ -17,7 +17,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/uuid"
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
 	nberrors "github.com/netbirdio/netbird/client/errors"
@@ -443,15 +442,15 @@ func (m *Manager) Close(*statemanager.Manager) error {
 
 	m.resetState()
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	if m.ifaceAllower != nil {
 		if err := m.ifaceAllower.Close(); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("close interface allower: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("close interface allower: %w", err))
 		}
 	}
 	if !m.netstack {
 		if err := firewalld.UntrustInterface(m.wgIface.Name()); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("untrust interface in firewalld: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("untrust interface in firewalld: %w", err))
 		}
 	}
 	return nberrors.FormatErrorOrNil(merr)
@@ -1869,10 +1868,10 @@ func (m *Manager) disableRouting() error {
 	m.routingEnabled.Store(false)
 	m.nativeRouter.Store(false)
 
-	var merr *multierror.Error
+	var merr *nberrors.Error
 	for _, rule := range m.blockRules {
 		if err := m.deleteRouteRule(rule); err != nil {
-			merr = multierror.Append(merr, fmt.Errorf("delete block rule: %w", err))
+			merr = nberrors.Append(merr, fmt.Errorf("delete block rule: %w", err))
 		}
 	}
 	m.blockRules = nil
