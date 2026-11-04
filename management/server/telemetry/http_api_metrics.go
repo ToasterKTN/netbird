@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/rs/xid"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/netbirdio/netbird/shared/xid"
 
 	"github.com/netbirdio/netbird/formatter/hook"
 	nbContext "github.com/netbirdio/netbird/management/server/context"

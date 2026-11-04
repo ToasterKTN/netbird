@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/netbirdio/netbird/management/server/util"
-	"github.com/rs/xid"
+	"github.com/netbirdio/netbird/shared/xid"
 
 	"github.com/netbirdio/netbird/base62"
 )

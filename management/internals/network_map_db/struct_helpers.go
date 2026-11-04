@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/rs/xid"
+	"github.com/netbirdio/netbird/shared/xid"
 )
 
 var ErrNoRows = errors.New("no rows in result set")

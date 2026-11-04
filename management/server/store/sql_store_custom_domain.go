@@ -7,10 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/xid"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/netbirdio/netbird/shared/xid"
 
 	"github.com/netbirdio/netbird/management/internals/modules/reverseproxy/domain"
 	nbdomain "github.com/netbirdio/netbird/shared/management/domain"
