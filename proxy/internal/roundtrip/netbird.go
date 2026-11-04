@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -22,7 +21,6 @@ import (
 	grpcstatus "google.golang.org/grpc/status"
 
 	"github.com/netbirdio/netbird/client/embed"
-	nberrors "github.com/netbirdio/netbird/client/errors"
 	"github.com/netbirdio/netbird/proxy/internal/types"
 	"github.com/netbirdio/netbird/shared/management/proto"
 	"github.com/netbirdio/netbird/util"
@@ -685,7 +683,7 @@ func (n *NetBird) StopAll(ctx context.Context) error {
 	defer n.clientsMux.Unlock()
 
 	stopHandler := n.stopHandler
-	var merr *multierror.Error
+	var merr []error
 	for accountID, entry := range n.clients {
 		if entry.inbound != nil && stopHandler != nil {
 			stopHandler(accountID, entry.inbound)
@@ -696,12 +694,12 @@ func (n *NetBird) StopAll(ctx context.Context) error {
 			n.logger.WithFields(log.Fields{
 				"account_id": accountID,
 			}).WithError(err).Warn("failed to stop netbird client during shutdown")
-			merr = multierror.Append(merr, err)
+			merr = append(merr, err)
 		}
 	}
 	maps.Clear(n.clients)
 
-	return nberrors.FormatErrorOrNil(merr)
+	return errors.Join(merr...)
 }
 
 // HasClient returns true if there is a client for the given account.

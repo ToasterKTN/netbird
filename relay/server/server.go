@@ -3,14 +3,13 @@ package server
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/url"
 	"sync"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 
-	nberrors "github.com/netbirdio/netbird/client/errors"
 	"github.com/netbirdio/netbird/relay/protocol"
 	"github.com/netbirdio/netbird/relay/server/listener"
 	"github.com/netbirdio/netbird/relay/server/listener/quic"
@@ -92,12 +91,12 @@ func (r *Server) Listen(cfg ListenerConfig) error {
 
 	wg.Wait()
 	close(errChan)
-	var multiErr *multierror.Error
+	var multiErr []error
 	for err := range errChan {
-		multiErr = multierror.Append(multiErr, err)
+		multiErr = append(multiErr, err)
 	}
 
-	return nberrors.FormatErrorOrNil(multiErr)
+	return errors.Join(multiErr...)
 }
 
 // Shutdown stops the relay server. If there are active connections, they will be closed gracefully. In case of a context,
@@ -171,11 +170,11 @@ func bindListeners(listeners []Listener) ([]Listener, error) {
 }
 
 func shutdownListeners(ctx context.Context, listeners []Listener) error {
-	var multiErr *multierror.Error
+	var multiErr []error
 	for _, l := range listeners {
 		if err := l.Shutdown(ctx); err != nil {
-			multiErr = multierror.Append(multiErr, err)
+			multiErr = append(multiErr, err)
 		}
 	}
-	return nberrors.FormatErrorOrNil(multiErr)
+	return errors.Join(multiErr...)
 }

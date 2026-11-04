@@ -7,8 +7,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/hashicorp/go-multierror"
-	nberrors "github.com/netbirdio/netbird/client/errors"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/netbirdio/netbird/formatter"
@@ -156,15 +154,15 @@ func (s *Server) handlePacket(conn *net.UDPConn, data []byte, addr *net.UDPAddr)
 func (s *Server) Shutdown() error {
 	s.logger.Info("shutting down STUN server")
 
-	var merr *multierror.Error
+	var merr []error
 
 	for _, conn := range s.conns {
 		if err := conn.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
-			merr = multierror.Append(merr, fmt.Errorf("close STUN UDP connection: %w", err))
+			merr = append(merr, fmt.Errorf("close STUN UDP connection: %w", err))
 		}
 	}
 
 	// Wait for all readLoops to finish
 	s.wg.Wait()
-	return nberrors.FormatErrorOrNil(merr)
+	return errors.Join(merr...)
 }

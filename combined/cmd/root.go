@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/metric"
@@ -412,28 +411,28 @@ func startServers(wg *sync.WaitGroup, srv *relayServer.Server, httpHealthcheck *
 }
 
 func shutdownServers(ctx context.Context, srv *relayServer.Server, httpHealthcheck *healthcheck.Server, stunServer *stun.Server, mgmtSrv mgmtServer.Server, signalSrv *signalServer.Server, metricsServer *sharedMetrics.Metrics) error {
-	var errs error
+	var errs []error
 
 	if err := httpHealthcheck.Shutdown(ctx); err != nil {
-		errs = multierror.Append(errs, fmt.Errorf("failed to close healthcheck server: %w", err))
+		errs = append(errs, fmt.Errorf("failed to close healthcheck server: %w", err))
 	}
 
 	if stunServer != nil {
 		if err := stunServer.Shutdown(); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("failed to close STUN server: %w", err))
+			errs = append(errs, fmt.Errorf("failed to close STUN server: %w", err))
 		}
 	}
 
 	if srv != nil {
 		if err := srv.Shutdown(ctx); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("failed to close relay server: %w", err))
+			errs = append(errs, fmt.Errorf("failed to close relay server: %w", err))
 		}
 	}
 
 	if mgmtSrv != nil {
 		log.Infof("shutting down management and signal servers")
 		if err := mgmtSrv.Stop(); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("failed to close management server: %w", err))
+			errs = append(errs, fmt.Errorf("failed to close management server: %w", err))
 		}
 	}
 
@@ -444,11 +443,11 @@ func shutdownServers(ctx context.Context, srv *relayServer.Server, httpHealthche
 	if metricsServer != nil {
 		log.Infof("shutting down metrics server")
 		if err := metricsServer.Shutdown(ctx); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("failed to close metrics server: %w", err))
+			errs = append(errs, fmt.Errorf("failed to close metrics server: %w", err))
 		}
 	}
 
-	return errs
+	return errors.Join(errs...)
 }
 
 func createHealthCheck(hCfg healthcheck.Config, stunListeners []*net.UDPConn) (*healthcheck.Server, error) {

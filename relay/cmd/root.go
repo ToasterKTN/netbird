@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -271,28 +270,28 @@ func startServers(wg *sync.WaitGroup, metricsServer *metrics.Metrics, srv *serve
 }
 
 func shutdownServers(ctx context.Context, metricsServer *metrics.Metrics, srv *server.Server, httpHealthcheck *healthcheck.Server, stunServer *stun.Server) error {
-	var errs error
+	var errs []error
 
 	if err := httpHealthcheck.Shutdown(ctx); err != nil {
-		errs = multierror.Append(errs, fmt.Errorf("failed to close healthcheck server: %w", err))
+		errs = append(errs, fmt.Errorf("failed to close healthcheck server: %w", err))
 	}
 
 	if stunServer != nil {
 		if err := stunServer.Shutdown(); err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("failed to close STUN server: %w", err))
+			errs = append(errs, fmt.Errorf("failed to close STUN server: %w", err))
 		}
 	}
 
 	if err := srv.Shutdown(ctx); err != nil {
-		errs = multierror.Append(errs, fmt.Errorf("failed to close relay server: %w", err))
+		errs = append(errs, fmt.Errorf("failed to close relay server: %w", err))
 	}
 
 	log.Infof("shutting down metrics server")
 	if err := metricsServer.Shutdown(ctx); err != nil {
-		errs = multierror.Append(errs, fmt.Errorf("failed to close metrics server: %w", err))
+		errs = append(errs, fmt.Errorf("failed to close metrics server: %w", err))
 	}
 
-	return errs
+	return errors.Join(errs...)
 }
 
 func createHealthCheck(hCfg healthcheck.Config) (*healthcheck.Server, error) {
