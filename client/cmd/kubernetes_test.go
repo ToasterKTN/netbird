@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -221,7 +223,12 @@ users:
   user:
     token: none
 `
-			require.Equal(t, expected, string(b))
+			// Compare parsed documents: the encoder's indentation style is
+			// not part of the contract, only the resulting kubeconfig.
+			var want, got map[string]any
+			require.NoError(t, yaml.Unmarshal([]byte(expected), &want))
+			require.NoError(t, yaml.Unmarshal(b, &got))
+			require.Equal(t, want, got)
 		})
 	}
 
