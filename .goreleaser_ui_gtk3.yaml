@@ -35,6 +35,15 @@ builds:
     tags:
       - production
       - gtk3
+      - route53
+      - openapivalidation
+      - idp_okta
+      - idp_authentik
+      - rosenpass
+      - upnp
+      - profiling
+      - sftp
+      - qrcode
 
 archives:
   - id: linux-gtk3-arch
