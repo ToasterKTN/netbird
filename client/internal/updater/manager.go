@@ -298,7 +298,7 @@ func (m *Manager) NotifyUI() {
 			return
 		}
 		currentVersion, err := v.NewVersion(m.currentVersion)
-		if err != nil || currentVersion.GreaterThanOrEqual(latestVersion) {
+		if err != nil || !version.GreaterThanCore(latestVersion, currentVersion) {
 			return
 		}
 		if m.modeChanged(gen) {
@@ -563,7 +563,7 @@ func (m *Manager) shouldUpdate(updateVersion *v.Version, forceUpdate bool) bool 
 		log.Errorf("error checking for update, error parsing version `%s`: %v", m.currentVersion, err)
 		return false
 	}
-	if currentVersion.GreaterThanOrEqual(updateVersion) {
+	if !version.GreaterThanCore(updateVersion, currentVersion) {
 		log.Infof("current version (%s) is equal to or higher than auto-update version (%s)", m.currentVersion, updateVersion)
 		return false
 	}

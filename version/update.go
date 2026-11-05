@@ -203,7 +203,9 @@ func (u *Update) isUpdateAvailable() bool {
 		return false
 	}
 
-	if u.latestAvailable.GreaterThan(u.uiVersion) {
+	// Compare MAJOR.MINOR.PATCH only so fork prerelease tags like -ktn.N
+	// match the upstream release of the same number and do not offer an update.
+	if GreaterThanCore(u.latestAvailable, u.uiVersion) {
 		return true
 	}
 
@@ -211,7 +213,7 @@ func (u *Update) isUpdateAvailable() bool {
 		return false
 	}
 
-	if u.latestAvailable.GreaterThan(u.daemonVersion) {
+	if GreaterThanCore(u.latestAvailable, u.daemonVersion) {
 		return true
 	}
 	return false
