@@ -101,3 +101,53 @@ func waitTimeout(wg *sync.WaitGroup) {
 		return
 	}
 }
+
+func TestDoNotUpdateForkPrerelease(t *testing.T) {
+	version = "0.82.0-ktn.2"
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "0.82.0")
+	}))
+	defer svr.Close()
+	versionURL = svr.URL
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	onUpdate := false
+	u := NewUpdateAndStart(httpAgent)
+	defer u.StopWatch()
+	u.SetOnUpdateListener(func() {
+		onUpdate = true
+		wg.Done()
+	})
+
+	waitTimeout(wg)
+	if onUpdate {
+		t.Errorf("fork prerelease should not offer update for same numeric upstream version")
+	}
+}
+
+func TestUpdateWhenUpstreamNumericHigher(t *testing.T) {
+	version = "0.82.0-ktn.2"
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "0.83.0")
+	}))
+	defer svr.Close()
+	versionURL = svr.URL
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	onUpdate := false
+	u := NewUpdateAndStart(httpAgent)
+	defer u.StopWatch()
+	u.SetOnUpdateListener(func() {
+		onUpdate = true
+		wg.Done()
+	})
+
+	waitTimeout(wg)
+	if !onUpdate {
+		t.Errorf("expected update when upstream numeric version is higher")
+	}
+}
