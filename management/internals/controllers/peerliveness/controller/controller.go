@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/xid"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/netbirdio/netbird/management/internals/controllers/peerliveness"
 	nbpeer "github.com/netbirdio/netbird/management/server/peer"
 	"github.com/netbirdio/netbird/management/server/types"
+	"github.com/netbirdio/netbird/shared/xid"
 )
 
 const sweepChunkSize = 1000

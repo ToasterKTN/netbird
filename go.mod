@@ -10,7 +10,6 @@ require (
 	cunicu.li/go-rosenpass v0.5.42
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cloudflare/circl v1.6.3 // indirect
-	github.com/golang/protobuf v1.5.4
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/kardianos/service v1.3.0
@@ -38,8 +37,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.31.6
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.10
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.87.3
-	github.com/c-robinson/iplib v1.0.3
-	github.com/caarlos0/env/v11 v11.4.1
 	github.com/caddyserver/certmagic v0.21.3
 	github.com/coder/websocket v1.8.14
 	github.com/coreos/go-iptables v0.7.0
@@ -51,7 +48,6 @@ require (
 	github.com/docker/go-connections v0.6.0
 	github.com/ebitengine/purego v0.9.1
 	github.com/eko/gocache/lib/v4 v4.2.0
-	github.com/eko/gocache/store/go_cache/v4 v4.2.2
 	github.com/eko/gocache/store/redis/v4 v4.2.2
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gliderlabs/ssh v0.3.9-0.20250127223818-909fa952d4e4
@@ -71,7 +67,6 @@ require (
 	github.com/grafana/pyroscope-go v1.4.2
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.2-0.20240212192251-757544f21357
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-version v1.7.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/libdns/route53 v1.5.0
@@ -95,7 +90,6 @@ require (
 	github.com/okta/okta-sdk-golang/v2 v2.18.0
 	github.com/ory/dockertest/v4 v4.0.0
 	github.com/oschwald/maxminddb-golang v1.12.0
-	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/petermattis/goid v0.0.0-20250303134427-723919f7f203
 	github.com/pion/logging v0.2.4
 	github.com/pion/randutil v0.1.0
@@ -107,9 +101,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/quic-go/quic-go v0.64.0
 	github.com/redis/go-redis/v9 v9.7.3
-	github.com/rs/xid v1.3.0
 	github.com/shirou/gopsutil/v4 v4.25.8
-	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.12.1
@@ -122,7 +114,6 @@ require (
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/wailsapp/wails/v3 v3.0.0-beta.3
 	github.com/yusufpapurcu/wmi v1.2.4
-	github.com/zcalusic/sysinfo v1.1.3
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.67.0
 	go.opentelemetry.io/otel v1.43.0
 	go.opentelemetry.io/otel/exporters/prometheus v0.64.0
@@ -204,7 +195,7 @@ require (
 	github.com/cilium/ebpf v0.19.0 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
-	github.com/containerd/log v0.1.0
+	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
 	github.com/crowdsecurity/go-cs-lib v0.0.25 // indirect
