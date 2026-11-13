@@ -1,0 +1,516 @@
+// Copyright 2023-2026 Princess Beef Heavy Industries, LLC / Dave Shanley
+// SPDX-License-Identifier: MIT
+
+package parameters
+
+import (
+	"fmt"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/pb33f/libopenapi/datamodel/high/base"
+
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+
+	"github.com/pb33f/libopenapi-validator/errors"
+	"github.com/pb33f/libopenapi-validator/helpers"
+	"github.com/pb33f/libopenapi-validator/internal/requeststate"
+	"github.com/pb33f/libopenapi-validator/paths"
+)
+
+func (v *paramValidator) ValidatePathParams(request *http.Request) (bool, []*errors.ValidationError) {
+	pathItem, errs, foundPath := paths.FindPath(request, v.document, v.options)
+	if len(errs) > 0 {
+		return false, errs
+	}
+	return v.ValidatePathParamsWithPathItem(request, pathItem, foundPath)
+}
+
+func (v *paramValidator) ValidatePathParamsWithPathItem(request *http.Request, pathItem *v3.PathItem, pathValue string) (bool, []*errors.ValidationError) {
+	request = v.withRoute(request, pathItem)
+	if pathItem == nil {
+		return false, []*errors.ValidationError{{
+			ValidationType:    helpers.PathValidation,
+			ValidationSubType: helpers.ValidationMissing,
+			Message:           fmt.Sprintf("%s Path '%s' not found", request.Method, request.URL.Path),
+			Reason: fmt.Sprintf("The %s request contains a path of '%s' "+
+				"however that path, or the %s method for that path does not exist in the specification",
+				request.Method, request.URL.Path, request.Method),
+			SpecLine: -1,
+			SpecCol:  -1,
+			HowToFix: errors.HowToFixPath,
+		}}
+	}
+	// split the path into segments, dropping empty segments so that a request
+	// path containing a double slash (e.g. //test/path) does not shift the
+	// index alignment between submitted and template segments.
+	submittedPath := paths.StripRequestPath(request, v.document)
+	templatePath := pathValue
+	if !strings.Contains(submittedPath, "#") {
+		// like the router, ignore a template's fragment when the request has none; servers never receive one.
+		templatePath, _, _ = strings.Cut(pathValue, "#")
+	}
+	submittedSegments := nonEmptyPathSegments(submittedPath)
+	pathSegments := nonEmptyPathSegments(templatePath)
+
+	// get the operation method for error reporting
+	operation := strings.ToLower(request.Method)
+
+	// extract params for the operation
+	params := helpers.ExtractParamsForOperation(request, pathItem)
+	validationErrors := v.validateContentParameters(request, pathItem, pathValue, helpers.Path)
+	for _, p := range params {
+		if p.In == helpers.Path && p.Schema != nil {
+			// a mismatch in segment counts means the submitted path cannot be
+			// aligned with the template (e.g. an extra empty segment from a
+			// double slash); reject it rather than silently mis-validating.
+			if len(submittedSegments) != len(pathSegments) {
+				validationErrors = append(validationErrors,
+					errors.PathParameterMissing(p, pathValue, request.URL.Path))
+				continue
+			}
+
+			// var paramTemplate string
+			for x := range pathSegments {
+				var rgx *regexp.Regexp
+
+				if v.options.RegexCache != nil {
+					if cachedRegex, found := v.options.RegexCache.Load(pathSegments[x]); found {
+						rgx = cachedRegex.(*regexp.Regexp)
+					}
+				}
+
+				if rgx == nil {
+
+					r, err := helpers.GetRegexForPath(pathSegments[x])
+					if err != nil {
+						continue
+					}
+
+					rgx = r
+
+					if v.options.RegexCache != nil {
+						v.options.RegexCache.Store(pathSegments[x], r)
+					}
+				}
+
+				matches := rgx.FindStringSubmatch(submittedSegments[x])
+				if matches == nil {
+					// the submitted segment doesn't satisfy this template
+					// segment's regex. only flag the current outer-loop
+					// parameter as missing if this template segment is
+					// actually the one that declares it; otherwise the
+					// failure belongs to a different parameter and we leave
+					// it for that parameter's iteration to report.
+					if segmentReferencesParam(pathSegments[x], p.Name) {
+						validationErrors = append(validationErrors,
+							errors.PathParameterMissing(p, pathValue, request.URL.Path))
+						break
+					}
+					continue
+				}
+				matches = matches[1:]
+
+				// Check if it is well-formed.
+				idxs, errBraces := helpers.BraceIndices(pathSegments[x])
+				if errBraces != nil {
+					continue
+				}
+
+				idx := 0
+
+				for _, match := range matches {
+
+					isMatrix := false
+					isLabel := false
+					// isExplode := false
+					isSimple := true
+					paramTemplate := pathSegments[x][idxs[idx]+1 : idxs[idx+1]-1]
+					idx += 2 // move to the next brace pair
+					paramName := paramTemplate
+
+					// check for an asterisk on the end of the parameter (explode)
+					if strings.HasSuffix(paramTemplate, helpers.Asterisk) {
+						// isExplode = true
+						paramName = paramTemplate[:len(paramTemplate)-1]
+					}
+					if strings.HasPrefix(paramTemplate, helpers.Period) {
+						isLabel = true
+						isSimple = false
+						paramName = paramName[1:]
+					}
+					if strings.HasPrefix(paramTemplate, helpers.SemiColon) {
+						isMatrix = true
+						isSimple = false
+						paramName = paramName[1:]
+					}
+
+					// does this param name match the current path segment param name
+					if paramName != p.Name {
+						continue
+					}
+
+					paramValue := match
+
+					// URL decode the parameter value before validation
+					decodedParamValue, _ := url.PathUnescape(paramValue)
+
+					if decodedParamValue == "" {
+						// Mandatory path parameter cannot be empty
+						if p.Required != nil && *p.Required {
+							validationErrors = append(validationErrors, errors.PathParameterMissing(p, pathValue, request.URL.Path))
+							break
+						}
+						continue
+					}
+
+					// extract the schema from the parameter
+					sch := p.Schema.Schema()
+
+					// Get rendered schema for ReferenceSchema field in errors (uses cache if available)
+					renderedSchema := GetRenderedSchema(sch, v.options)
+
+					// check enum (if present)
+					enumCheck := func(decodedValue string, parsedValue any) {
+						matchFound := false
+						for _, enumVal := range sch.Enum {
+							if enumValueMatches(decodedValue, parsedValue, enumVal.Value) {
+								matchFound = true
+								break
+							}
+						}
+						if !matchFound {
+							validationErrors = append(validationErrors,
+								errors.IncorrectPathParamEnum(p, strings.ToLower(decodedValue), sch, pathValue, renderedSchema))
+						}
+					}
+
+					// for each type, check the value.
+					if sch != nil && sch.Type != nil {
+						for typ := range sch.Type {
+							switch sch.Type[typ] {
+							case helpers.String:
+
+								// TODO: label and matrix style validation
+
+								// check if the param is within the enum
+								if sch.Enum != nil {
+									enumCheck(decodedParamValue, nil)
+									break
+								}
+								validationErrors = append(validationErrors,
+									ValidateSingleParameterSchema(
+										sch,
+										decodedParamValue,
+										"Path parameter",
+										"The path parameter",
+										p.Name,
+										helpers.ParameterValidation,
+										helpers.ParameterValidationPath,
+										v.options,
+										pathValue,
+										operation,
+									)...)
+
+							case helpers.Integer:
+								// simple use case is already handled in find param.
+								rawParamValue, paramValueParsed, err := v.resolveInteger(sch, p, isLabel, isMatrix, decodedParamValue, pathValue, renderedSchema)
+								if err != nil {
+									validationErrors = append(validationErrors, err...)
+									break
+								}
+								// check if the param is within the enum
+								if sch.Enum != nil {
+									enumCheck(rawParamValue, paramValueParsed)
+									break
+								}
+								validationErrors = append(validationErrors, ValidateSingleParameterSchema(
+									sch,
+									paramValueParsed,
+									"Path parameter",
+									"The path parameter",
+									p.Name,
+									helpers.ParameterValidation,
+									helpers.ParameterValidationPath,
+									v.options,
+									pathValue,
+									operation,
+								)...)
+
+							case helpers.Number:
+								// simple use case is already handled in find param.
+								rawParamValue, paramValueParsed, err := v.resolveNumber(sch, p, isLabel, isMatrix, decodedParamValue, pathValue, renderedSchema)
+								if err != nil {
+									validationErrors = append(validationErrors, err...)
+									break
+								}
+								// check if the param is within the enum
+								if sch.Enum != nil {
+									enumCheck(rawParamValue, paramValueParsed)
+									break
+								}
+								validationErrors = append(validationErrors, ValidateSingleParameterSchema(
+									sch,
+									paramValueParsed,
+									"Path parameter",
+									"The path parameter",
+									p.Name,
+									helpers.ParameterValidation,
+									helpers.ParameterValidationPath,
+									v.options,
+									pathValue,
+									operation,
+								)...)
+
+							case helpers.Boolean:
+								if isLabel && p.Style == helpers.LabelStyle {
+									if _, err := strconv.ParseBool(decodedParamValue[1:]); err != nil {
+										validationErrors = append(validationErrors,
+											errors.IncorrectPathParamBool(p, decodedParamValue[1:], sch, pathValue, renderedSchema))
+									}
+								}
+								if isSimple {
+									if _, err := strconv.ParseBool(decodedParamValue); err != nil {
+										validationErrors = append(validationErrors,
+											errors.IncorrectPathParamBool(p, decodedParamValue, sch, pathValue, renderedSchema))
+									}
+								}
+								if isMatrix && p.Style == helpers.MatrixStyle {
+									// strip off the colon and the parameter name
+									decodedForMatrix := strings.Replace(decodedParamValue[1:], fmt.Sprintf("%s=", p.Name), "", 1)
+									if _, err := strconv.ParseBool(decodedForMatrix); err != nil {
+										validationErrors = append(validationErrors,
+											errors.IncorrectPathParamBool(p, decodedForMatrix, sch, pathValue, renderedSchema))
+									}
+								}
+							case helpers.Object:
+								var encodedObject interface{}
+
+								if p.IsDefaultPathEncoding() {
+									encodedObject = helpers.ConstructMapFromCSVWithSchema(decodedParamValue, sch)
+								} else {
+									switch p.Style {
+									case helpers.LabelStyle:
+										if !p.IsExploded() {
+											encodedObject = helpers.ConstructMapFromCSVWithSchema(decodedParamValue[1:], sch)
+										} else {
+											encodedObject = helpers.ConstructKVFromLabelEncodingWithSchema(decodedParamValue, sch)
+										}
+									case helpers.MatrixStyle:
+										if !p.IsExploded() {
+											decodedForMatrix := strings.Replace(decodedParamValue[1:], fmt.Sprintf("%s=", p.Name), "", 1)
+											encodedObject = helpers.ConstructMapFromCSVWithSchema(decodedForMatrix, sch)
+										} else {
+											decodedForMatrix := strings.Replace(decodedParamValue[1:], fmt.Sprintf("%s=", p.Name), "", 1)
+											encodedObject = helpers.ConstructKVFromMatrixCSVWithSchema(decodedForMatrix, sch)
+										}
+									default:
+										if p.IsExploded() {
+											encodedObject = helpers.ConstructKVFromCSVWithSchema(decodedParamValue, sch)
+										}
+									}
+								}
+								// if a schema was extracted
+								if sch != nil {
+									validationErrors = append(validationErrors,
+										ValidateParameterSchema(sch,
+											encodedObject,
+											"",
+											"Path parameter",
+											"The path parameter",
+											p.Name,
+											helpers.ParameterValidation,
+											helpers.ParameterValidationPath, v.options)...)
+								}
+
+							case helpers.Array:
+
+								// extract the items schema in order to validate the array items.
+								if sch.Items != nil && sch.Items.IsA() {
+									iSch := sch.Items.A.Schema()
+
+									// Get rendered items schema for ReferenceSchema field in errors (uses cache if available)
+									renderedItemsSchema := GetRenderedSchema(iSch, v.options)
+
+									for n := range iSch.Type {
+										// determine how to explode the array
+										var arrayValues []string
+										if isSimple {
+											arrayValues = strings.Split(decodedParamValue, helpers.Comma)
+										}
+										if isLabel {
+											if !p.IsExploded() {
+												arrayValues = strings.Split(decodedParamValue[1:], helpers.Comma)
+											} else {
+												arrayValues = strings.Split(decodedParamValue[1:], helpers.Period)
+											}
+										}
+										if isMatrix {
+											if !p.IsExploded() {
+												decodedForMatrix := strings.Replace(decodedParamValue[1:], fmt.Sprintf("%s=", p.Name), "", 1)
+												arrayValues = strings.Split(decodedForMatrix, helpers.Comma)
+											} else {
+												decodedForMatrix := strings.ReplaceAll(decodedParamValue[1:], fmt.Sprintf("%s=", p.Name), "")
+												arrayValues = strings.Split(decodedForMatrix, helpers.SemiColon)
+											}
+										}
+										switch iSch.Type[n] {
+										case helpers.Integer:
+											for pv := range arrayValues {
+												if _, err := helpers.ParseInteger(arrayValues[pv]); err != nil {
+													validationErrors = append(validationErrors,
+														errors.IncorrectPathParamArrayInteger(p, arrayValues[pv], sch, iSch, pathValue, renderedItemsSchema))
+												}
+											}
+										case helpers.Number:
+											for pv := range arrayValues {
+												if _, err := helpers.ParseNumber(arrayValues[pv]); err != nil {
+													validationErrors = append(validationErrors,
+														errors.IncorrectPathParamArrayNumber(p, arrayValues[pv], sch, iSch, pathValue, renderedItemsSchema))
+												}
+											}
+										case helpers.Boolean:
+											for pv := range arrayValues {
+												bc := len(validationErrors)
+												if _, err := strconv.ParseBool(arrayValues[pv]); err != nil {
+													validationErrors = append(validationErrors,
+														errors.IncorrectPathParamArrayBoolean(p, arrayValues[pv], sch, iSch, pathValue, renderedItemsSchema))
+													continue
+												}
+												if len(validationErrors) == bc {
+													// ParseBool will parse 0 or 1 as false/true to we
+													// need to catch this edge case.
+													if arrayValues[pv] == "0" || arrayValues[pv] == "1" {
+														validationErrors = append(validationErrors,
+															errors.IncorrectPathParamArrayBoolean(p, arrayValues[pv], sch, iSch, pathValue, renderedItemsSchema))
+														continue
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	errors.PopulateValidationErrors(validationErrors, request, pathValue)
+
+	if len(validationErrors) > 0 {
+		return false, validationErrors
+	}
+	return true, nil
+}
+
+// segmentReferencesParam reports whether the given path template segment
+// (e.g. "{id:[0-9]+}" or "items.{id}.json") contains a brace-pair whose
+// parameter name matches the supplied name. It is used to attribute a
+// regex no-match failure to the correct parameter on multi-param routes.
+func segmentReferencesParam(segment, name string) bool {
+	idxs, err := helpers.BraceIndices(segment)
+	if err != nil || len(idxs) < 2 {
+		return false
+	}
+	for i := 0; i+1 < len(idxs); i += 2 {
+		raw := segment[idxs[i]+1 : idxs[i+1]-1]
+		// strip explode suffix
+		if strings.HasSuffix(raw, helpers.Asterisk) {
+			raw = raw[:len(raw)-1]
+		}
+		// strip label/matrix prefix
+		if strings.HasPrefix(raw, helpers.Period) || strings.HasPrefix(raw, helpers.SemiColon) {
+			raw = raw[1:]
+		}
+		// drop any constraining regex `name:pattern`
+		if colon := strings.Index(raw, ":"); colon >= 0 {
+			raw = raw[:colon]
+		}
+		if raw == name {
+			return true
+		}
+	}
+	return false
+}
+
+// nonEmptyPathSegments splits a path on "/" and drops empty segments, so that
+// leading, trailing, or repeated slashes do not introduce empty entries that
+// would shift index alignment between submitted and template segments.
+func nonEmptyPathSegments(path string) []string {
+	raw := strings.Split(path, helpers.Slash)
+	segments := make([]string, 0, len(raw))
+	for _, segment := range raw {
+		if segment == "" {
+			continue
+		}
+		segments = append(segments, segment)
+	}
+	return segments
+}
+
+func (v *paramValidator) resolveNumber(sch *base.Schema, p *v3.Parameter, isLabel bool, isMatrix bool, paramValue string, pathValue string, renderedSchema string) (string, float64, []*errors.ValidationError) {
+	if isLabel && p.Style == helpers.LabelStyle {
+		paramValueParsed, err := helpers.ParseNumber(paramValue[1:])
+		if err != nil {
+			return "", 0, []*errors.ValidationError{errors.IncorrectPathParamNumber(p, paramValue[1:], sch, pathValue, renderedSchema)}
+		}
+		return paramValue[1:], paramValueParsed, nil
+	}
+	if isMatrix && p.Style == helpers.MatrixStyle {
+		// strip off the colon and the parameter name
+		paramValue = strings.Replace(paramValue[1:], fmt.Sprintf("%s=", p.Name), "", 1)
+		paramValueParsed, err := helpers.ParseNumber(paramValue)
+		if err != nil {
+			return "", 0, []*errors.ValidationError{errors.IncorrectPathParamNumber(p, paramValue, sch, pathValue, renderedSchema)}
+		}
+		return paramValue, paramValueParsed, nil
+	}
+	paramValueParsed, err := helpers.ParseNumber(paramValue)
+	if err != nil {
+		return "", 0, []*errors.ValidationError{errors.IncorrectPathParamNumber(p, paramValue, sch, pathValue, renderedSchema)}
+	}
+	return paramValue, paramValueParsed, nil
+}
+
+func (v *paramValidator) resolveInteger(sch *base.Schema, p *v3.Parameter, isLabel bool, isMatrix bool, paramValue string, pathValue string, renderedSchema string) (string, int64, []*errors.ValidationError) {
+	if isLabel && p.Style == helpers.LabelStyle {
+		paramValueParsed, err := helpers.ParseInteger(paramValue[1:])
+		if err != nil {
+			return "", 0, []*errors.ValidationError{errors.IncorrectPathParamInteger(p, paramValue[1:], sch, pathValue, renderedSchema)}
+		}
+		return paramValue[1:], paramValueParsed, nil
+	}
+	if isMatrix && p.Style == helpers.MatrixStyle {
+		// strip off the colon and the parameter name
+		paramValue = strings.Replace(paramValue[1:], fmt.Sprintf("%s=", p.Name), "", 1)
+		paramValueParsed, err := helpers.ParseInteger(paramValue)
+		if err != nil {
+			return "", 0, []*errors.ValidationError{errors.IncorrectPathParamInteger(p, paramValue, sch, pathValue, renderedSchema)}
+		}
+		return paramValue, paramValueParsed, nil
+	}
+	paramValueParsed, err := helpers.ParseInteger(paramValue)
+	if err != nil {
+		return "", 0, []*errors.ValidationError{errors.IncorrectPathParamInteger(p, paramValue, sch, pathValue, renderedSchema)}
+	}
+	return paramValue, paramValueParsed, nil
+}
+
+// withRoute returns request carrying the route the router matched for it, unless one is attached
+// already, so path parameters are read from the path the router matched after the server base path
+// (and any server variables in it) was removed. The caller's request is not changed.
+func (v *paramValidator) withRoute(request *http.Request, pathItem *v3.PathItem) *http.Request {
+	if pathItem == nil || v.options == nil || v.options.Router == nil || requeststate.Route(request) != nil {
+		return request
+	}
+	if route, err := v.options.Router.FindRoute(request); err == nil && route.PathItem == pathItem {
+		return requeststate.WithRoute(request, route)
+	}
+	return request
+}

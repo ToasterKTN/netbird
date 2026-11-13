@@ -1,0 +1,74 @@
+# SPDX-FileCopyrightText: 2023 Steffen Vogel <post@steffenvogel.de>
+# SPDX-License-Identifier: Apache-2.0
+
+---
+project_name: go-rosenpass
+
+before:
+  hooks:
+  - go mod tidy
+
+builds:
+- main: ./cmd/
+  env:
+  - CGO_ENABLED=0
+  goos:
+  - aix
+  - darwin
+  - dragonfly
+  - freebsd
+  - illumos
+  - linux
+  - netbsd
+  - openbsd
+  - plan9
+  - solaris
+  - windows
+
+  goarch:
+  - 386
+  - amd64
+  - arm
+  - arm64
+  - mips
+  - mips64
+  - mips64le
+  - ppc64
+  - ppc64le
+  - riscv64
+
+  goarm:
+  - 6
+  - 7
+
+  gomips:
+  - hardfloat
+  - softfloat
+
+  ignore:
+  - goos: windows
+    goarch: arm
+
+archives:
+- format: binary
+
+release:
+  github:
+    owner: cunicu
+    name: go-rosenpass
+  
+  draft: true
+  replace_existing_draft: true
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'

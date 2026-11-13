@@ -1,0 +1,697 @@
+/* SPDX-License-Identifier: MIT
+ *
+ * Copyright (C) 2017-2025 WireGuard LLC. All Rights Reserved.
+ */
+
+package device
+
+import (
+	"encoding/binary"
+	"errors"
+	"net"
+	"os"
+	"sync"
+	"time"
+
+	"golang.org/x/crypto/chacha20poly1305"
+	"golang.org/x/net/ipv4"
+	"golang.org/x/net/ipv6"
+
+	"github.com/netbirdio/wireguard-go/conn"
+	"github.com/netbirdio/wireguard-go/tun"
+)
+
+/* Outbound flow
+ *
+ * 1. TUN queue
+ * 2. Routing (sequential)
+ * 3. Nonce assignment (sequential)
+ * 4. Encryption (parallel)
+ * 5. Transmission (sequential)
+ *
+ * The functions in this file occur (roughly) in the order in
+ * which the packets are processed.
+ *
+ * Locking, Producers and Consumers
+ *
+ * The order of packets (per peer) must be maintained,
+ * but encryption of packets happen out-of-order:
+ *
+ * The sequential consumers will attempt to take the lock,
+ * workers release lock when they have completed work (encryption) on the packet.
+ *
+ * If the element is inserted into the "encryption queue",
+ * the content is preceded by enough "junk" to contain the transport header
+ * (to allow the construction of transport messages in-place)
+ */
+
+type QueueOutboundElement struct {
+	buffer  *[MaxMessageSize]byte // slice holding the packet data
+	packet  []byte                // slice of "buffer" (always!)
+	nonce   uint64                // nonce for encryption
+	keypair *Keypair              // keypair for encryption
+	peer    *Peer                 // related peer
+}
+
+type QueueOutboundElementsContainer struct {
+	sync.Mutex
+	elems []*QueueOutboundElement
+}
+
+func (device *Device) NewOutboundElement() *QueueOutboundElement {
+	elem := device.GetOutboundElement()
+	elem.buffer = device.GetMessageBuffer()
+	elem.nonce = 0
+	// keypair and peer were cleared (if necessary) by clearPointers.
+	return elem
+}
+
+// TryNewOutboundElement is NewOutboundElement without the wait. It returns
+// false if either pool is at capacity, giving back whatever it already took.
+func (device *Device) TryNewOutboundElement() (*QueueOutboundElement, bool) {
+	elem, ok := device.TryGetOutboundElement()
+	if !ok {
+		return nil, false
+	}
+	buffer, ok := device.TryGetMessageBuffer()
+	if !ok {
+		device.PutOutboundElement(elem)
+		return nil, false
+	}
+	elem.buffer = buffer
+	elem.nonce = 0
+	// keypair and peer were cleared (if necessary) by clearPointers.
+	return elem, true
+}
+
+// outboundElementsContainer is GetOutboundElementsContainer when wait is true;
+// otherwise it is the Try variant and returns nil when the pool is at capacity.
+func (device *Device) outboundElementsContainer(wait bool) *QueueOutboundElementsContainer {
+	if wait {
+		return device.GetOutboundElementsContainer()
+	}
+	c, _ := device.TryGetOutboundElementsContainer()
+	return c
+}
+
+// putOutboundBatch returns a batch and its elements to the pools.
+func (device *Device) putOutboundBatch(c *QueueOutboundElementsContainer) {
+	for _, elem := range c.elems {
+		device.PutMessageBuffer(elem.buffer)
+		device.PutOutboundElement(elem)
+	}
+	device.PutOutboundElementsContainer(c)
+}
+
+// clearPointers clears elem fields that contain pointers.
+// This makes the garbage collector's life easier and
+// avoids accidentally keeping other objects around unnecessarily.
+// It also reduces the possible collateral damage from use-after-free bugs.
+func (elem *QueueOutboundElement) clearPointers() {
+	elem.buffer = nil
+	elem.packet = nil
+	elem.keypair = nil
+	elem.peer = nil
+}
+
+/* Queues a keepalive if no packets are queued for peer.
+ *
+ * Runs from timer callbacks, so nothing on its path may wait: see
+ * sendStagedPackets.
+ */
+func (peer *Peer) SendKeepalive() {
+	if len(peer.queue.staged) == 0 && peer.isRunning.Load() {
+		peer.stageKeepalive()
+	}
+	peer.sendStagedPackets(false)
+}
+
+// stageKeepalive queues one keepalive packet, or gives up if the buffer pool is
+// at capacity.
+//
+// Giving up matters: the keepalive timers call this from a timer callback, which
+// holds that timer's runningLock for the whole of the call. Timer.DelSync waits
+// on the same lock, so a callback parked in the pool blocks Peer.Stop, and with
+// it RemovePeer and Device.Close - the very operations that would return staged
+// buffers to the pool and let it drain. A keepalive is best effort, so dropping
+// one costs nothing and the next tick retries.
+func (peer *Peer) stageKeepalive() {
+	elem, ok := peer.device.TryNewOutboundElement()
+	if !ok {
+		peer.device.log.Verbosef("%v - Skipping keepalive, buffer pool exhausted", peer)
+		return
+	}
+	elemsContainer, ok := peer.device.TryGetOutboundElementsContainer()
+	if !ok {
+		peer.device.PutMessageBuffer(elem.buffer)
+		peer.device.PutOutboundElement(elem)
+		peer.device.log.Verbosef("%v - Skipping keepalive, buffer pool exhausted", peer)
+		return
+	}
+	elemsContainer.elems = append(elemsContainer.elems, elem)
+	select {
+	case peer.queue.staged <- elemsContainer:
+		peer.queue.stagedPackets.Add(1)
+		peer.device.log.Verbosef("%v - Sending keepalive packet", peer)
+	default:
+		peer.device.putOutboundBatch(elemsContainer)
+	}
+}
+
+// SendHandshakeInitiation sends a handshake initiation, rate-limited to one per
+// RekeyTimeout. A call that is not a retry starts a fresh negotiation and resets
+// the attempt counter expiredRetransmitHandshake uses to give up; a retry keeps
+// counting towards that limit. This matches the kernel's
+// wg_packet_send_queued_handshake_initiation.
+func (peer *Peer) SendHandshakeInitiation(isRetry bool) error {
+	if !isRetry {
+		peer.timers.handshakeAttempts.Store(0)
+	}
+
+	peer.handshake.mutex.RLock()
+	if time.Since(peer.handshake.lastSentHandshake) < RekeyTimeout {
+		peer.handshake.mutex.RUnlock()
+		return nil
+	}
+	peer.handshake.mutex.RUnlock()
+
+	peer.handshake.mutex.Lock()
+	if time.Since(peer.handshake.lastSentHandshake) < RekeyTimeout {
+		peer.handshake.mutex.Unlock()
+		return nil
+	}
+	peer.handshake.lastSentHandshake = time.Now()
+	peer.handshake.mutex.Unlock()
+
+	return peer.sendHandshakeInitiation()
+}
+
+// sendHandshakeInitiation transmits the initiation; the caller owns the
+// RekeyTimeout throttle and lastSentHandshake.
+func (peer *Peer) sendHandshakeInitiation() error {
+	peer.device.log.Verbosef("%v - Sending handshake initiation", peer)
+
+	msg, err := peer.device.CreateMessageInitiation(peer)
+	if err != nil {
+		peer.device.log.Errorf("%v - Failed to create initiation message: %v", peer, err)
+		return err
+	}
+
+	packet := make([]byte, MessageInitiationSize)
+	_ = msg.marshal(packet)
+	peer.cookieGenerator.AddMacs(packet)
+
+	peer.timersAnyAuthenticatedPacketTraversal()
+	peer.timersAnyAuthenticatedPacketSent()
+
+	err = peer.SendBuffers([][]byte{packet})
+	if err != nil {
+		peer.device.log.Errorf("%v - Failed to send handshake initiation: %v", peer, err)
+	}
+	peer.timersHandshakeInitiated()
+
+	return err
+}
+
+// needsHandshake reports whether the peer lacks a usable session, i.e. a new
+// handshake is required before traffic can flow.
+func (peer *Peer) needsHandshake() bool {
+	keypair := peer.keypairs.Current()
+	return keypair == nil ||
+		keypair.sendNonce.Load() >= RejectAfterMessages ||
+		time.Since(keypair.created) >= RejectAfterTime
+}
+
+// SendHandshakeInitiationOnEndpointChange starts a fresh handshake from the new
+// endpoint, skipping the RekeyTimeout throttle since any in-flight retry is
+// timed against the old address.
+func (peer *Peer) SendHandshakeInitiationOnEndpointChange() error {
+	peer.timers.handshakeAttempts.Store(0)
+
+	peer.handshake.mutex.Lock()
+	peer.handshake.lastSentHandshake = time.Now()
+	peer.handshake.mutex.Unlock()
+
+	return peer.sendHandshakeInitiation()
+}
+
+func (peer *Peer) SendHandshakeResponse() error {
+	peer.handshake.mutex.Lock()
+	peer.handshake.lastSentHandshake = time.Now()
+	peer.handshake.mutex.Unlock()
+
+	peer.device.log.Verbosef("%v - Sending handshake response", peer)
+
+	response, err := peer.device.CreateMessageResponse(peer)
+	if err != nil {
+		peer.device.log.Errorf("%v - Failed to create response message: %v", peer, err)
+		return err
+	}
+
+	packet := make([]byte, MessageResponseSize)
+	_ = response.marshal(packet)
+	peer.cookieGenerator.AddMacs(packet)
+
+	err = peer.BeginSymmetricSession()
+	if err != nil {
+		peer.device.log.Errorf("%v - Failed to derive keypair: %v", peer, err)
+		return err
+	}
+
+	peer.timersSessionDerived()
+	peer.timersAnyAuthenticatedPacketTraversal()
+	peer.timersAnyAuthenticatedPacketSent()
+
+	// TODO: allocation could be avoided
+	err = peer.SendBuffers([][]byte{packet})
+	if err != nil {
+		peer.device.log.Errorf("%v - Failed to send handshake response: %v", peer, err)
+	}
+	return err
+}
+
+func (device *Device) SendHandshakeCookie(initiatingElem *QueueHandshakeElement) error {
+	device.log.Verbosef("Sending cookie response for denied handshake message for %v", initiatingElem.endpoint.DstToString())
+
+	sender := binary.LittleEndian.Uint32(initiatingElem.packet[4:8])
+	reply, err := device.cookieChecker.CreateReply(initiatingElem.packet, sender, initiatingElem.endpoint.DstToBytes())
+	if err != nil {
+		device.log.Errorf("Failed to create cookie reply: %v", err)
+		return err
+	}
+
+	packet := make([]byte, MessageCookieReplySize)
+	_ = reply.marshal(packet)
+	// TODO: allocation could be avoided
+	device.net.bind.Send([][]byte{packet}, initiatingElem.endpoint)
+
+	return nil
+}
+
+func (peer *Peer) keepKeyFreshSending() {
+	keypair := peer.keypairs.Current()
+	if keypair == nil {
+		return
+	}
+	nonce := keypair.sendNonce.Load()
+	if nonce > RekeyAfterMessages || (keypair.isInitiator && time.Since(keypair.created) > RekeyAfterTime) {
+		peer.SendHandshakeInitiation(false)
+	}
+}
+
+func (device *Device) RoutineReadFromTUN() {
+	defer func() {
+		device.log.Verbosef("Routine: TUN reader - stopped")
+		device.state.stopping.Done()
+		device.queue.encryption.wg.Done()
+	}()
+
+	device.log.Verbosef("Routine: TUN reader - started")
+
+	var (
+		batchSize   = device.BatchSize()
+		readErr     error
+		elems       = make([]*QueueOutboundElement, batchSize)
+		bufs        = make([][]byte, batchSize)
+		elemsByPeer = make(map[*Peer]*QueueOutboundElementsContainer, batchSize)
+		count       = 0
+		sizes       = make([]int, batchSize)
+		offset      = MessageTransportHeaderSize
+	)
+
+	for i := range elems {
+		elems[i] = device.NewOutboundElement()
+		bufs[i] = elems[i].buffer[:]
+	}
+
+	defer func() {
+		for _, elem := range elems {
+			if elem != nil {
+				device.PutMessageBuffer(elem.buffer)
+				device.PutOutboundElement(elem)
+			}
+		}
+	}()
+
+	for {
+		// read packets
+		count, readErr = device.tun.device.Read(bufs, sizes, offset)
+		for i := 0; i < count; i++ {
+			if sizes[i] < 1 {
+				continue
+			}
+
+			elem := elems[i]
+			elem.packet = bufs[i][offset : offset+sizes[i]]
+
+			// lookup peer
+			var peer *Peer
+			switch elem.packet[0] >> 4 {
+			case 4:
+				if len(elem.packet) < ipv4.HeaderLen {
+					continue
+				}
+				dst := elem.packet[IPv4offsetDst : IPv4offsetDst+net.IPv4len]
+				peer = device.allowedips.Lookup(dst)
+
+			case 6:
+				if len(elem.packet) < ipv6.HeaderLen {
+					continue
+				}
+				dst := elem.packet[IPv6offsetDst : IPv6offsetDst+net.IPv6len]
+				peer = device.allowedips.Lookup(dst)
+
+			default:
+				device.log.Verbosef("Received packet with unknown IP version")
+			}
+
+			if peer == nil {
+				continue
+			}
+			elemsForPeer, ok := elemsByPeer[peer]
+			if !ok {
+				elemsForPeer = device.GetOutboundElementsContainer()
+				elemsByPeer[peer] = elemsForPeer
+			}
+			elemsForPeer.elems = append(elemsForPeer.elems, elem)
+			elems[i] = device.NewOutboundElement()
+			bufs[i] = elems[i].buffer[:]
+		}
+
+		for peer, elemsForPeer := range elemsByPeer {
+			if peer.isRunning.Load() {
+				peer.StagePackets(elemsForPeer)
+				peer.SendStagedPackets()
+			} else {
+				for _, elem := range elemsForPeer.elems {
+					device.PutMessageBuffer(elem.buffer)
+					device.PutOutboundElement(elem)
+				}
+				device.PutOutboundElementsContainer(elemsForPeer)
+			}
+			delete(elemsByPeer, peer)
+		}
+
+		if readErr != nil {
+			if errors.Is(readErr, tun.ErrTooManySegments) {
+				// TODO: record stat for this
+				// This will happen if MSS is surprisingly small (< 576)
+				// coincident with reasonably high throughput.
+				device.log.Verbosef("Dropped some packets from multi-segment read: %v", readErr)
+				continue
+			}
+			if !device.isClosed() {
+				if !errors.Is(readErr, os.ErrClosed) {
+					device.log.Errorf("Failed to read packet from TUN device: %v", readErr)
+				}
+				go device.Close()
+			}
+			return
+		}
+	}
+}
+
+// StagePackets queues a batch behind the peer's pending handshake. Like the
+// kernel's wg_xmit it keeps at most MaxStagedPackets packets per peer, dropping
+// the oldest to make room before the new batch goes in. Without the bound a
+// peer that never completes its handshake pins a whole batch per queue slot -
+// thousands of buffers with GSO-sized batches - and drains a capped pool for
+// every other peer on the device.
+func (peer *Peer) StagePackets(elems *QueueOutboundElementsContainer) {
+	for peer.queue.stagedPackets.Load() > MaxStagedPackets {
+		if !peer.dropOldestStaged() {
+			break
+		}
+	}
+	for {
+		select {
+		case peer.queue.staged <- elems:
+			peer.queue.stagedPackets.Add(int32(len(elems.elems)))
+			return
+		default:
+		}
+		peer.dropOldestStaged()
+	}
+}
+
+// dropOldestStaged discards the oldest staged batch, returning its buffers to
+// the pool. It reports false if nothing was staged.
+func (peer *Peer) dropOldestStaged() bool {
+	select {
+	case tooOld := <-peer.queue.staged:
+		peer.queue.stagedPackets.Add(-int32(len(tooOld.elems)))
+		peer.device.putOutboundBatch(tooOld)
+		return true
+	default:
+		return false
+	}
+}
+
+// SendStagedPackets hands the staged packets to the encryption and
+// transmission queues, waiting for room when they are full.
+func (peer *Peer) SendStagedPackets() {
+	peer.sendStagedPackets(true)
+}
+
+// sendStagedPackets is SendStagedPackets with waiting optional. With wait false
+// nothing on the path blocks: a pool or queue that is full drops the batch, the
+// way the kernel drops when GFP_ATOMIC fails or the crypt ring refuses a packet.
+// Timer callbacks need this mode - they hold the timer's runningLock for the
+// whole call, and a callback parked on a pool or queue blocks Timer.DelSync, and
+// with it Peer.Stop, RemovePeer and Device.Close.
+func (peer *Peer) sendStagedPackets(wait bool) {
+top:
+	if len(peer.queue.staged) == 0 || !peer.device.isUp() {
+		return
+	}
+
+	keypair := peer.keypairs.Current()
+	if keypair == nil || keypair.sendNonce.Load() >= RejectAfterMessages || time.Since(keypair.created) >= RejectAfterTime {
+		peer.SendHandshakeInitiation(false)
+		return
+	}
+
+	for {
+		var elemsContainerOOO *QueueOutboundElementsContainer
+		select {
+		case elemsContainer := <-peer.queue.staged:
+			peer.queue.stagedPackets.Add(-int32(len(elemsContainer.elems)))
+			i := 0
+			for _, elem := range elemsContainer.elems {
+				elem.peer = peer
+				elem.nonce = keypair.sendNonce.Add(1) - 1
+				if elem.nonce >= RejectAfterMessages {
+					keypair.sendNonce.Store(RejectAfterMessages)
+					if elemsContainerOOO == nil {
+						elemsContainerOOO = peer.device.outboundElementsContainer(wait)
+					}
+					if elemsContainerOOO == nil {
+						peer.device.PutMessageBuffer(elem.buffer)
+						peer.device.PutOutboundElement(elem)
+						continue
+					}
+					elemsContainerOOO.elems = append(elemsContainerOOO.elems, elem)
+					continue
+				} else {
+					elemsContainer.elems[i] = elem
+					i++
+				}
+
+				elem.keypair = keypair
+			}
+			elemsContainer.Lock()
+			elemsContainer.elems = elemsContainer.elems[:i]
+
+			if elemsContainerOOO != nil {
+				peer.StagePackets(elemsContainerOOO) // XXX: Out of order, but we can't front-load go chans
+			}
+
+			if len(elemsContainer.elems) == 0 {
+				peer.device.PutOutboundElementsContainer(elemsContainer)
+				goto top
+			}
+
+			// add to parallel and sequential queue
+			if peer.isRunning.Load() {
+				peer.enqueueOutbound(elemsContainer, wait)
+			} else {
+				peer.device.putOutboundBatch(elemsContainer)
+			}
+
+			if elemsContainerOOO != nil {
+				goto top
+			}
+		default:
+			return
+		}
+	}
+}
+
+// enqueueOutbound hands a nonce-assigned batch to the sequential sender and
+// then to the encryption workers. With wait false a full queue drops the batch
+// instead. If the sender already holds it, the batch is emptied and unlocked so
+// the sender passes over it - the kernel marks such a packet PACKET_STATE_DEAD
+// for the same reason.
+func (peer *Peer) enqueueOutbound(elemsContainer *QueueOutboundElementsContainer, wait bool) {
+	if wait {
+		peer.queue.outbound.c <- elemsContainer
+		peer.device.queue.encryption.c <- elemsContainer
+		return
+	}
+	select {
+	case peer.queue.outbound.c <- elemsContainer:
+	default:
+		peer.device.log.Verbosef("%v - Dropping %d packets, outbound queue full", peer, len(elemsContainer.elems))
+		peer.device.putOutboundBatch(elemsContainer)
+		return
+	}
+	select {
+	case peer.device.queue.encryption.c <- elemsContainer:
+	default:
+		peer.device.log.Verbosef("%v - Dropping %d packets, encryption queue full", peer, len(elemsContainer.elems))
+		for i, elem := range elemsContainer.elems {
+			peer.device.PutMessageBuffer(elem.buffer)
+			peer.device.PutOutboundElement(elem)
+			elemsContainer.elems[i] = nil
+		}
+		elemsContainer.elems = elemsContainer.elems[:0]
+		elemsContainer.Unlock()
+	}
+}
+
+// FlushStagedPackets drops every staged packet and returns its buffers.
+func (peer *Peer) FlushStagedPackets() {
+	for peer.dropOldestStaged() {
+	}
+}
+
+func calculatePaddingSize(packetSize, mtu int) int {
+	lastUnit := packetSize
+	if mtu == 0 {
+		return ((lastUnit + PaddingMultiple - 1) & ^(PaddingMultiple - 1)) - lastUnit
+	}
+	if lastUnit > mtu {
+		lastUnit %= mtu
+	}
+	paddedSize := ((lastUnit + PaddingMultiple - 1) & ^(PaddingMultiple - 1))
+	if paddedSize > mtu {
+		paddedSize = mtu
+	}
+	return paddedSize - lastUnit
+}
+
+/* Encrypts the elements in the queue
+ * and marks them for sequential consumption (by releasing the mutex)
+ *
+ * Obs. One instance per core
+ */
+func (device *Device) RoutineEncryption(id int) {
+	var paddingZeros [PaddingMultiple]byte
+	var nonce [chacha20poly1305.NonceSize]byte
+
+	defer device.log.Verbosef("Routine: encryption worker %d - stopped", id)
+	device.log.Verbosef("Routine: encryption worker %d - started", id)
+
+	for elemsContainer := range device.queue.encryption.c {
+		for _, elem := range elemsContainer.elems {
+			// populate header fields
+			header := elem.buffer[:MessageTransportHeaderSize]
+
+			fieldType := header[0:4]
+			fieldReceiver := header[4:8]
+			fieldNonce := header[8:16]
+
+			binary.LittleEndian.PutUint32(fieldType, MessageTransportType)
+			binary.LittleEndian.PutUint32(fieldReceiver, elem.keypair.remoteIndex)
+			binary.LittleEndian.PutUint64(fieldNonce, elem.nonce)
+
+			// pad content to multiple of 16
+			paddingSize := calculatePaddingSize(len(elem.packet), int(device.tun.mtu.Load()))
+			elem.packet = append(elem.packet, paddingZeros[:paddingSize]...)
+
+			// encrypt content and release to consumer
+
+			binary.LittleEndian.PutUint64(nonce[4:], elem.nonce)
+			elem.packet = elem.keypair.send.Seal(
+				header,
+				nonce[:],
+				elem.packet,
+				nil,
+			)
+		}
+		elemsContainer.Unlock()
+	}
+}
+
+func (peer *Peer) RoutineSequentialSender(maxBatchSize int) {
+	device := peer.device
+	defer func() {
+		defer device.log.Verbosef("%v - Routine: sequential sender - stopped", peer)
+		peer.stopping.Done()
+	}()
+	device.log.Verbosef("%v - Routine: sequential sender - started", peer)
+
+	bufs := make([][]byte, 0, maxBatchSize)
+
+	for elemsContainer := range peer.queue.outbound.c {
+		bufs = bufs[:0]
+		if elemsContainer == nil {
+			return
+		}
+		if !peer.isRunning.Load() {
+			// peer has been stopped; return re-usable elems to the shared pool.
+			// This is an optimization only. It is possible for the peer to be stopped
+			// immediately after this check, in which case, elem will get processed.
+			// The timers and SendBuffers code are resilient to a few stragglers.
+			// TODO: rework peer shutdown order to ensure
+			// that we never accidentally keep timers alive longer than necessary.
+			elemsContainer.Lock()
+			for _, elem := range elemsContainer.elems {
+				device.PutMessageBuffer(elem.buffer)
+				device.PutOutboundElement(elem)
+			}
+			device.PutOutboundElementsContainer(elemsContainer)
+			continue
+		}
+		elemsContainer.Lock()
+		if len(elemsContainer.elems) == 0 {
+			// enqueueOutbound emptied the batch because the encryption queue was
+			// full: nothing to send, and no timer to touch.
+			device.PutOutboundElementsContainer(elemsContainer)
+			continue
+		}
+		dataSent := false
+		for _, elem := range elemsContainer.elems {
+			if len(elem.packet) != MessageKeepaliveSize {
+				dataSent = true
+			}
+			bufs = append(bufs, elem.packet)
+		}
+
+		peer.timersAnyAuthenticatedPacketTraversal()
+		peer.timersAnyAuthenticatedPacketSent()
+
+		err := peer.SendBuffers(bufs)
+		if dataSent {
+			peer.timersDataSent()
+		}
+		for _, elem := range elemsContainer.elems {
+			device.PutMessageBuffer(elem.buffer)
+			device.PutOutboundElement(elem)
+		}
+		device.PutOutboundElementsContainer(elemsContainer)
+		if err != nil {
+			var errGSO conn.ErrUDPGSODisabled
+			if errors.As(err, &errGSO) {
+				device.log.Verbosef(err.Error())
+				err = errGSO.RetryErr
+			}
+		}
+		if err != nil {
+			device.log.Errorf("%v - Failed to send data packets: %v", peer, err)
+			continue
+		}
+
+		peer.keepKeyFreshSending()
+	}
+}

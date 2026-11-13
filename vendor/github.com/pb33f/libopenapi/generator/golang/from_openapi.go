@@ -1,0 +1,762 @@
+// Copyright 2026 Princess B33f Heavy Industries / Dave Shanley
+// SPDX-License-Identifier: MIT
+
+package golang
+
+import (
+	"strings"
+
+	"github.com/pb33f/go-yaml"
+	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/orderedmap"
+)
+
+func (g *Generator) irFromOpenAPI(name string, proxy *highbase.SchemaProxy, path string) (*SchemaIR, error) {
+	return g.irFromOpenAPIName(name, false, proxy, path)
+}
+
+func (g *Generator) irFromOpenAPIName(name string, nameResolved bool, proxy *highbase.SchemaProxy, path string) (*SchemaIR, error) {
+	if proxy == nil {
+		return nil, wrapPath(ErrNilSchema, path)
+	}
+	if cached := g.openapiCache[proxy]; cached != nil {
+		return cached, nil
+	}
+	if proxy.IsTransformedRefWithSiblings() {
+		schema, err := proxy.BuildTransformedRefSemanticSchema(proxy.Schema())
+		if err != nil {
+			return nil, wrapPath(err, path)
+		}
+		ir := g.irFromSchema(name, nameResolved, schema, path)
+		g.openapiCache[proxy] = ir
+		return ir, nil
+	}
+	if proxy.IsReference() {
+		ref := proxy.GetReference()
+		typeName := g.refTypeName(ref)
+		if !strings.HasPrefix(ref, "#/") {
+			g.addDiagnostic(DiagnosticExternalReference, path, "external reference rendered as Go type "+typeName)
+		}
+		ir := &SchemaIR{
+			Name: typeName,
+			Ref:  ref,
+			Kind: KindRef,
+		}
+		g.openapiCache[proxy] = ir
+		return ir, nil
+	}
+	schema := proxy.Schema()
+	if schema == nil {
+		return nil, wrapPath(ErrNilSchema, path)
+	}
+	ir := g.irFromSchema(name, nameResolved, schema, path)
+	g.openapiCache[proxy] = ir
+	return ir, nil
+}
+
+// childIR builds a nested schema. If the nested schema cannot be built it
+// records a diagnostic and falls back to an any-typed shape so the surrounding
+// field, item, or variant is preserved rather than silently dropped.
+func (g *Generator) childIR(name string, proxy *highbase.SchemaProxy, path string) *SchemaIR {
+	ir, err := g.irFromOpenAPIName(name, true, proxy, path)
+	if err != nil {
+		g.addDiagnostic(DiagnosticChildSchema, path, "nested schema could not be built and was rendered as any: "+err.Error())
+		return &SchemaIR{Name: name, Kind: KindAny}
+	}
+	return ir
+}
+
+func (g *Generator) irFromSchema(name string, nameResolved bool, schema *highbase.Schema, path string) *SchemaIR {
+	g.collectShapeDiagnostics(path, schema)
+	if schema.DynamicRef != "" && schemaHasOnlyDynamicRefShape(schema) {
+		nullable := schema.Nullable != nil && *schema.Nullable
+		return &SchemaIR{
+			Name:         g.refTypeName(schema.DynamicRef),
+			Ref:          schema.DynamicRef,
+			Kind:         KindRef,
+			DynamicRef:   true,
+			Nullable:     nullable,
+			Format:       schema.Format,
+			Description:  schema.Description,
+			Title:        schema.Title,
+			Extensions:   schema.Extensions,
+			SourceSchema: schema,
+		}
+	}
+	typeName := g.openapiSchemaTypeName(name, nameResolved, schema, path)
+	ir := &SchemaIR{
+		Name:         typeName,
+		Format:       schema.Format,
+		Description:  schema.Description,
+		Title:        schema.Title,
+		Required:     make(map[string]struct{}),
+		Properties:   nil,
+		Enum:         schema.Enum,
+		Const:        schema.Const,
+		Extensions:   schema.Extensions,
+		SourceSchema: schema,
+	}
+	if schema.Nullable != nil && *schema.Nullable {
+		ir.Nullable = true
+	}
+	if schema.ReadOnly != nil && *schema.ReadOnly {
+		ir.ReadOnly = true
+		ir.Comments = append(ir.Comments, "readOnly")
+	}
+	if schema.WriteOnly != nil && *schema.WriteOnly {
+		ir.WriteOnly = true
+		ir.Comments = append(ir.Comments, "writeOnly")
+	}
+	if schema.Deprecated != nil && *schema.Deprecated {
+		ir.Deprecated = true
+		ir.Comments = append(ir.Comments, "Deprecated.")
+	}
+	if schema.Default != nil {
+		ir.Comments = append(ir.Comments, "default value is defined in the OpenAPI schema")
+	}
+	if schema.Example != nil || len(schema.Examples) > 0 {
+		ir.Comments = append(ir.Comments, "example value is defined in the OpenAPI schema")
+	}
+	for _, t := range schema.Type {
+		if t == "null" {
+			ir.Nullable = true
+		}
+	}
+	if schema.Const != nil && nodeIsNull(schema.Const) {
+		ir.Nullable = true
+	}
+	for _, required := range schema.Required {
+		ir.Required[required] = struct{}{}
+	}
+
+	if len(schema.AllOf) > 0 {
+		ir.Kind = KindAllOf
+		for i, child := range schema.AllOf {
+			ir.AllOf = append(ir.AllOf, g.childIR(g.nestedTypeName(ir.Name, "AllOf"+intString(i+1)), child, path+".allOf"))
+		}
+		g.mergeAllOf(ir)
+		return ir
+	}
+
+	if len(schema.OneOf) > 0 || len(schema.AnyOf) > 0 {
+		g.populateUnion(ir, schema, path)
+		// Properties declared beside oneOf/anyOf apply to every variant. Go
+		// renders unions as raw JSON and ignores them; other emitters combine
+		// them with the variants.
+		// They neither claim nested type names nor report diagnostics, so Go
+		// names and reports only what it renders.
+		if ir.Kind == KindUnion && schema.Properties != nil && schema.Properties.Len() > 0 {
+			recorded, names := len(g.diagnostics), g.typeNames
+			g.typeNames = nil
+			g.populateObjectMembers(ir, schema, path)
+			g.diagnostics, g.typeNames = g.diagnostics[:recorded], names
+		}
+		return ir
+	}
+
+	if len(schema.Enum) > 0 {
+		shape := enumShapeFor(schema.Enum)
+		if shape.nullable {
+			ir.Nullable = true
+			g.addDiagnostic(DiagnosticNullEnum, path, "enum contains null; generated model uses nullable Go shape for non-null enum values")
+		}
+		if shape.mixed {
+			g.addDiagnostic(DiagnosticMixedEnum, path, "mixed-type enum rendered as any because Go constants require one scalar base type")
+		}
+		ir.Kind = KindEnum
+		return ir
+	}
+
+	if nonNull := nonNullTypes(schema.Type); len(nonNull) > 1 {
+		g.populateMultiTypeUnion(ir, nonNull, path)
+		return ir
+	}
+
+	g.populateSchemaShape(ir, schema, path)
+	return ir
+}
+
+func (g *Generator) openapiSchemaTypeName(name string, nameResolved bool, schema *highbase.Schema, path string) string {
+	if !nameResolved && g.componentTypeNames != nil {
+		return g.componentTypeName(name)
+	}
+	candidate := name
+	if !nameResolved {
+		candidate = g.publicName(name)
+	}
+	if !nameResolved || schemaDeclaresType(schema) {
+		return g.resolveTypeName(path, candidate, path)
+	}
+	return candidate
+}
+
+func schemaDeclaresType(schema *highbase.Schema) bool {
+	if schema == nil {
+		return false
+	}
+	if len(schema.AllOf) > 0 || len(schema.OneOf) > 0 || len(schema.AnyOf) > 0 || len(schema.Enum) > 0 {
+		return true
+	}
+	if len(nonNullTypes(schema.Type)) > 1 {
+		return true
+	}
+	typ, _, _ := primaryTypeForSchema(schema)
+	if typ != "object" {
+		return false
+	}
+	return (schema.Properties != nil && schema.Properties.Len() > 0) ||
+		schema.AdditionalProperties != nil ||
+		(schema.PatternProperties != nil && schema.PatternProperties.Len() > 0)
+}
+
+func (g *Generator) populateSchemaShape(ir *SchemaIR, schema *highbase.Schema, path string) {
+	typ, implicit, ambiguous := primaryTypeForSchema(schema)
+	if implicit {
+		g.addDiagnostic(DiagnosticImplicitType, path, "schema type inferred from JSON Schema keywords")
+	}
+	if ambiguous {
+		g.addDiagnostic(DiagnosticImplicitType, path, "schema has validation keywords for multiple JSON types; generated model uses any")
+	}
+	switch typ {
+	case "string":
+		ir.Kind = KindString
+	case "integer":
+		ir.Kind = KindInteger
+	case "number":
+		ir.Kind = KindNumber
+	case "boolean":
+		ir.Kind = KindBoolean
+	case "array":
+		ir.Kind = KindArray
+		if schema.Items != nil && schema.Items.IsA() {
+			ir.Items = g.childIR(g.nestedTypeName(ir.Name, "Item"), schema.Items.A, path+".items")
+		} else if schema.Items != nil && schema.Items.IsB() && !schema.Items.B {
+			g.addDiagnostic(DiagnosticBooleanItems, path, "items: false constrains array length but generated Go model uses []any")
+		}
+		for i, prefixItem := range schema.PrefixItems {
+			ir.PrefixItems = append(ir.PrefixItems, g.childIR(g.nestedTypeName(ir.Name, "Tuple"+intString(i+1)), prefixItem, path+".prefixItems"))
+		}
+		if len(ir.PrefixItems) > 0 {
+			g.addDiagnostic(DiagnosticPrefixItems, path, "prefixItems tuple shape rendered as []any")
+		}
+	case "object":
+		g.populateObject(ir, schema, path)
+	default:
+		if schema.Properties != nil && schema.Properties.Len() > 0 {
+			g.populateObject(ir, schema, path)
+			return
+		}
+		if schema.AdditionalProperties != nil {
+			g.populateObject(ir, schema, path)
+			return
+		}
+		ir.Kind = KindAny
+	}
+}
+
+func (g *Generator) populateMultiTypeUnion(ir *SchemaIR, types []string, path string) {
+	g.addDiagnostic(DiagnosticMultiTypeSchema, path, "multi-type JSON Schema rendered as json.RawMessage union")
+	ir.Kind = KindUnion
+	ir.Union = &UnionIR{Kind: UnionAnyOf, Strategy: UnionRawMessage, FromMultiType: true}
+	for _, typ := range types {
+		ir.Union.Variants = append(ir.Union.Variants, &SchemaIR{
+			Name: g.nestedTypeName(ir.Name, typ),
+			Kind: kindForJSONType(typ),
+		})
+	}
+}
+
+func (g *Generator) populateObject(ir *SchemaIR, schema *highbase.Schema, path string) {
+	ir.Kind = KindObject
+	g.populateObjectMembers(ir, schema, path)
+}
+
+func (g *Generator) populateObjectMembers(ir *SchemaIR, schema *highbase.Schema, path string) {
+	ir.Properties = orderedProperties()
+	if schema.Properties != nil {
+		for propName, propSchema := range schema.Properties.FromOldest() {
+			ir.Properties.Set(propName, g.childIR(g.nestedTypeName(ir.Name, propName), propSchema, path+"."+propName))
+		}
+	}
+	if schema.PatternProperties != nil && schema.PatternProperties.Len() > 0 {
+		ir.PatternProperties = orderedProperties()
+		for pattern, propSchema := range schema.PatternProperties.FromOldest() {
+			ir.PatternProperties.Set(pattern, g.childIR(g.nestedTypeName(ir.Name, "PatternProperty"), propSchema, path+".patternProperties"))
+		}
+		g.addDiagnostic(DiagnosticPatternProperties, path, "patternProperties cannot be represented directly as Go struct fields")
+	}
+	if schema.AdditionalProperties != nil {
+		switch {
+		case schema.AdditionalProperties.IsA():
+			ir.AdditionalProperties = g.childIR(g.nestedTypeName(ir.Name, "AdditionalProperty"), schema.AdditionalProperties.A, path+".additionalProperties")
+		case schema.AdditionalProperties.IsB():
+			allowed := schema.AdditionalProperties.B
+			ir.AdditionalAllowed = &allowed
+			if !allowed {
+				g.addDiagnostic(DiagnosticAdditionalPropertiesFalse, path, "additionalProperties: false prevents extra JSON fields but generated Go models do not reject unknown fields")
+			}
+		}
+	}
+}
+
+func (g *Generator) collectShapeDiagnostics(path string, schema *highbase.Schema) {
+	if schema == nil {
+		return
+	}
+	if schema.PropertyNames != nil {
+		g.addDiagnostic(DiagnosticPropertyNames, path, "propertyNames is validation-only and was not rendered into Go model shape")
+	}
+	if hasSchemaMetadata(schema) {
+		g.addDiagnostic(DiagnosticSchemaMetadata, path, "JSON Schema metadata keywords are preserved in the source schema but do not change generated Go model shape")
+	}
+	if schema.DynamicRef != "" {
+		g.addDiagnostic(DiagnosticDynamicReference, path, "$dynamicRef rendered as a Go reference name without dynamic resolution behavior")
+	}
+	if schema.ContentSchema != nil {
+		g.addDiagnostic(DiagnosticContentSchema, path, "contentSchema describes decoded string content and was not rendered into Go model shape")
+	}
+	if schema.Contains != nil || schema.MinContains != nil || schema.MaxContains != nil {
+		g.addDiagnostic(DiagnosticArrayContains, path, "contains/minContains/maxContains are validation-only and were not rendered into Go model shape")
+	}
+	if schema.UnevaluatedItems != nil {
+		g.addDiagnostic(DiagnosticUnevaluatedItems, path, "unevaluatedItems is validation-only and was not rendered into Go model shape")
+	}
+	if schema.DependentSchemas != nil && schema.DependentSchemas.Len() > 0 {
+		g.addDiagnostic(DiagnosticDependentSchemas, path, "dependentSchemas is validation-only and was not rendered into Go model shape")
+	}
+	if schema.DependentRequired != nil && schema.DependentRequired.Len() > 0 {
+		g.addDiagnostic(DiagnosticDependentRequired, path, "dependentRequired is validation-only and was not rendered into Go model shape")
+	}
+	if schema.If != nil || schema.Then != nil || schema.Else != nil {
+		g.addDiagnostic(DiagnosticConditionalSchema, path, "if/then/else is validation-only and was not rendered into Go model shape")
+	}
+	if schema.Not != nil {
+		g.addDiagnostic(DiagnosticNotSchema, path, "not is validation-only and was not rendered into Go model shape")
+	}
+	if schema.Const != nil {
+		g.addDiagnostic(DiagnosticConstKeyword, path, "const is validation-only and was not enforced by the generated Go model")
+	}
+	if hasValidationKeyword(schema) {
+		g.addDiagnostic(DiagnosticValidationKeyword, path, "JSON Schema validation keywords are not enforced by generated Go models")
+	}
+	if schema.UnevaluatedProperties != nil {
+		g.addDiagnostic(DiagnosticUnevaluatedProperties, path, "unevaluatedProperties is validation-only and was not rendered into Go model shape")
+	}
+}
+
+func (g *Generator) populateUnion(ir *SchemaIR, schema *highbase.Schema, path string) {
+	kind := UnionOneOf
+	children := schema.OneOf
+	if len(children) == 0 {
+		kind = UnionAnyOf
+		children = schema.AnyOf
+	}
+	variants := make([]*SchemaIR, 0, len(children))
+	for i, child := range children {
+		variantName := g.nestedTypeName(ir.Name, "Variant"+intString(i+1))
+		if built, err := child.BuildSchema(); err == nil && built != nil && built.Title != "" {
+			variantName = g.nestedTypeName(ir.Name, built.Title)
+		}
+		variants = append(variants, g.childIR(variantName, child, path+".union"))
+	}
+	// A oneOf/anyOf whose non-null variants are all scalar consts is an
+	// OpenAPI 3.1 const-based enum, not a structural union: fold it before
+	// building the union so the IR stays consistent.
+	if nodes, nullable, ok := constScalarEnumFromVariants(variants); ok {
+		ir.Enum = nodes
+		if nullable {
+			ir.Nullable = true
+		}
+		ir.Kind = KindEnum
+		return
+	}
+	nonNull := nonNullVariants(variants)
+	if len(nonNull) == 1 && len(nonNull) != len(variants) {
+		*ir = *nonNull[0]
+		ir.Nullable = true
+		return
+	}
+	ir.Kind = KindUnion
+	ir.Union = &UnionIR{Kind: kind, Variants: variants, Strategy: UnionRawMessage}
+	if kind != UnionOneOf {
+		return
+	}
+	if schema.Discriminator != nil && schema.Discriminator.PropertyName != "" {
+		if disc := discriminatorFromSchema(schema, variants); len(disc.Mapping) > 0 {
+			ir.Union.Discriminator = disc
+			ir.Union.Strategy = UnionDiscriminator
+			return
+		}
+	}
+	if disc := inferConstDiscriminator(variants); disc != nil {
+		ir.Union.Discriminator = disc
+		if !disc.Optional || g.optionalConstDiscriminatorUnions {
+			ir.Union.Strategy = UnionDiscriminator
+			return
+		}
+		g.addDiagnostic(DiagnosticOptionalConstDiscriminator, path, "oneOf has a shared const discriminator property, but it is optional; using json.RawMessage")
+	}
+}
+
+func (g *Generator) mergeAllOf(ir *SchemaIR) {
+	merged := newObjectIR(ir.Name)
+	merged.Format = ir.Format
+	merged.Description = ir.Description
+	merged.Title = ir.Title
+	merged.Nullable = ir.Nullable
+	merged.Enum = ir.Enum
+	merged.Const = ir.Const
+	merged.Extensions = ir.Extensions
+	merged.Source = ir.Source
+	merged.ReadOnly = ir.ReadOnly
+	merged.WriteOnly = ir.WriteOnly
+	merged.Deprecated = ir.Deprecated
+	merged.FieldMetadata = ir.FieldMetadata
+	merged.ExactSource = ir.ExactSource
+	merged.Comments = append([]string(nil), ir.Comments...)
+	merged.SourceSchema = ir.SourceSchema
+	for req := range ir.Required {
+		merged.Required[req] = struct{}{}
+	}
+	for _, child := range ir.AllOf {
+		if child == nil {
+			continue
+		}
+		if child.Kind == KindRef {
+			merged.AllOf = append(merged.AllOf, child)
+			continue
+		}
+		if child.Kind == KindObject && child.Properties != nil {
+			for name, prop := range child.Properties.FromOldest() {
+				merged.Properties.Set(name, prop)
+			}
+			for req := range child.Required {
+				merged.Required[req] = struct{}{}
+			}
+			continue
+		}
+		merged.AllOf = append(merged.AllOf, child)
+	}
+	*ir = *merged
+}
+
+func orderedProperties() *orderedmap.Map[string, *SchemaIR] {
+	return orderedmap.New[string, *SchemaIR]()
+}
+
+func nonNullTypes(types []string) []string {
+	out := make([]string, 0, len(types))
+	for _, t := range types {
+		if t != "null" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+func primaryTypeForSchema(schema *highbase.Schema) (string, bool, bool) {
+	types := nonNullTypes(schema.Type)
+	if len(types) > 0 {
+		return types[0], false, false
+	}
+	var inferred []string
+	if hasStringKeyword(schema) {
+		inferred = append(inferred, "string")
+	}
+	if hasNumberKeyword(schema) {
+		inferred = append(inferred, "number")
+	}
+	if hasArrayKeyword(schema) {
+		inferred = append(inferred, "array")
+	}
+	if hasObjectKeyword(schema) {
+		inferred = append(inferred, "object")
+	}
+	if len(inferred) == 1 {
+		return inferred[0], true, false
+	}
+	if len(inferred) > 1 {
+		return "", false, true
+	}
+	return "", false, false
+}
+
+func kindForJSONType(typ string) Kind {
+	switch typ {
+	case "string":
+		return KindString
+	case "integer":
+		return KindInteger
+	case "number":
+		return KindNumber
+	case "boolean":
+		return KindBoolean
+	case "array":
+		return KindArray
+	case "object":
+		return KindObject
+	default:
+		return KindAny
+	}
+}
+
+func schemaHasOnlyDynamicRefShape(schema *highbase.Schema) bool {
+	return schema.DynamicRef != "" &&
+		len(schema.Type) == 0 &&
+		len(schema.AllOf) == 0 &&
+		len(schema.OneOf) == 0 &&
+		len(schema.AnyOf) == 0 &&
+		len(schema.Enum) == 0 &&
+		schema.Const == nil &&
+		schema.Not == nil &&
+		schema.Properties == nil &&
+		schema.Items == nil &&
+		len(schema.PrefixItems) == 0 &&
+		schema.AdditionalProperties == nil
+}
+
+func hasSchemaMetadata(schema *highbase.Schema) bool {
+	return schema.SchemaTypeRef != "" ||
+		schema.Id != "" ||
+		schema.Anchor != "" ||
+		schema.DynamicAnchor != "" ||
+		schema.Comment != "" ||
+		(schema.Vocabulary != nil && schema.Vocabulary.Len() > 0)
+}
+
+func hasValidationKeyword(schema *highbase.Schema) bool {
+	return schema.MultipleOf != nil ||
+		schema.Maximum != nil ||
+		schema.Minimum != nil ||
+		schema.ExclusiveMaximum != nil ||
+		schema.ExclusiveMinimum != nil ||
+		schema.MaxLength != nil ||
+		schema.MinLength != nil ||
+		schema.Pattern != "" ||
+		schema.MaxItems != nil ||
+		schema.MinItems != nil ||
+		schema.UniqueItems != nil ||
+		schema.MaxProperties != nil ||
+		schema.MinProperties != nil ||
+		schema.ContentEncoding != "" ||
+		schema.ContentMediaType != ""
+}
+
+func hasStringKeyword(schema *highbase.Schema) bool {
+	return schema.MaxLength != nil ||
+		schema.MinLength != nil ||
+		schema.Pattern != "" ||
+		schema.ContentEncoding != "" ||
+		schema.ContentMediaType != "" ||
+		schema.ContentSchema != nil
+}
+
+func hasNumberKeyword(schema *highbase.Schema) bool {
+	return schema.MultipleOf != nil ||
+		schema.Maximum != nil ||
+		schema.Minimum != nil ||
+		schema.ExclusiveMaximum != nil ||
+		schema.ExclusiveMinimum != nil
+}
+
+func hasArrayKeyword(schema *highbase.Schema) bool {
+	return schema.Items != nil ||
+		len(schema.PrefixItems) > 0 ||
+		schema.Contains != nil ||
+		schema.MinContains != nil ||
+		schema.MaxContains != nil ||
+		schema.MaxItems != nil ||
+		schema.MinItems != nil ||
+		schema.UniqueItems != nil ||
+		schema.UnevaluatedItems != nil
+}
+
+func hasObjectKeyword(schema *highbase.Schema) bool {
+	return (schema.Properties != nil && schema.Properties.Len() > 0) ||
+		schema.AdditionalProperties != nil ||
+		(schema.PatternProperties != nil && schema.PatternProperties.Len() > 0) ||
+		schema.PropertyNames != nil ||
+		schema.MaxProperties != nil ||
+		schema.MinProperties != nil ||
+		len(schema.Required) > 0 ||
+		(schema.DependentSchemas != nil && schema.DependentSchemas.Len() > 0) ||
+		(schema.DependentRequired != nil && schema.DependentRequired.Len() > 0) ||
+		schema.UnevaluatedProperties != nil
+}
+
+func nonNullVariants(variants []*SchemaIR) []*SchemaIR {
+	var out []*SchemaIR
+	for _, variant := range variants {
+		if variant == nil {
+			continue
+		}
+		if isNullOnlyIR(variant) {
+			continue
+		}
+		out = append(out, variant)
+	}
+	return out
+}
+
+// constScalarEnumFromVariants reports whether a oneOf/anyOf is best modeled
+// as a scalar const enum (OpenAPI 3.1 style: oneOf of const values, e.g.
+// "oneOf: [ {const: available}, {const: pending} ]"). When it is, it returns
+// the const values in variant order, whether the union declares nullability
+// through a null-of variant, and true. Object, array, union and
+// dynamically-referenced variants are structural and never collapse to an
+// enum.
+func constScalarEnumFromVariants(variants []*SchemaIR) ([]*yaml.Node, bool, bool) {
+	if len(variants) == 0 {
+		return nil, false, false
+	}
+	nodes := make([]*yaml.Node, 0, len(variants))
+	nullable := false
+	for _, v := range variants {
+		if v == nil {
+			return nil, false, false
+		}
+		if isNullOnlyIR(v) {
+			nullable = true
+			continue
+		}
+		if v.Const == nil {
+			return nil, false, false
+		}
+		// Reject non-scalar consts (untyped object/array) and scalar tags the
+		// enum renderer cannot emit, or they fold to an empty string enum.
+		if v.Const.Kind != yaml.ScalarNode || enumFamily(v.Const) == "unknown" {
+			return nil, false, false
+		}
+		if s := v.SourceSchema; s != nil {
+			for _, t := range s.Type {
+				if t == "object" || t == "array" {
+					return nil, false, false
+				}
+			}
+			if s.DynamicRef != "" ||
+				len(s.AllOf) > 0 || len(s.OneOf) > 0 || len(s.AnyOf) > 0 || len(s.Enum) > 0 ||
+				(s.Properties != nil && s.Properties.Len() > 0) ||
+				(s.PatternProperties != nil && s.PatternProperties.Len() > 0) ||
+				s.Items != nil || len(s.PrefixItems) > 0 {
+				return nil, false, false
+			}
+		}
+		nodes = append(nodes, v.Const)
+	}
+	if len(nodes) == 0 {
+		return nil, false, false
+	}
+	return nodes, nullable, true
+}
+
+// IsNullOnly reports whether ir admits only null: type null, const null, or an
+// enum whose only value is null. Emitters use it to render such a schema as
+// their null type.
+func IsNullOnly(ir *SchemaIR) bool {
+	return isNullOnlyIR(ir)
+}
+
+func isNullOnlyIR(ir *SchemaIR) bool {
+	if ir == nil {
+		return false
+	}
+	if ir.SourceSchema != nil {
+		return schemaOnlyAllowsNull(ir.SourceSchema)
+	}
+	if ir.Const != nil && nodeIsNull(ir.Const) {
+		return true
+	}
+	if len(ir.Enum) > 0 {
+		shape := enumShapeFor(ir.Enum)
+		return shape.nullable && shape.nonNullValues == 0
+	}
+	return false
+}
+
+func schemaOnlyAllowsNull(schema *highbase.Schema) bool {
+	if schema == nil {
+		return false
+	}
+	if schema.Const != nil && nodeIsNull(schema.Const) {
+		return true
+	}
+	if len(schema.Enum) > 0 {
+		shape := enumShapeFor(schema.Enum)
+		return shape.nullable && shape.nonNullValues == 0
+	}
+	return len(schema.Type) > 0 && len(nonNullTypes(schema.Type)) == 0
+}
+
+func discriminatorFromSchema(schema *highbase.Schema, variants []*SchemaIR) *Discriminator {
+	disc := &Discriminator{
+		PropertyName: schema.Discriminator.PropertyName,
+		Mapping:      make(map[string]string),
+	}
+	if schema.Discriminator.Mapping != nil {
+		for k, v := range schema.Discriminator.Mapping.FromOldest() {
+			disc.Mapping[k] = v
+		}
+	}
+	if len(disc.Mapping) > 0 {
+		return disc
+	}
+	implicit := make(map[string]string, len(variants))
+	for _, variant := range variants {
+		if variant == nil || variant.Name == "" || variant.Ref == "" {
+			return disc
+		}
+		implicit[refName(variant.Ref)] = variant.Ref
+	}
+	disc.Mapping = implicit
+	return disc
+}
+
+func inferConstDiscriminator(variants []*SchemaIR) *Discriminator {
+	if len(variants) == 0 {
+		return nil
+	}
+	type candidate struct {
+		values   map[string]string
+		optional bool
+	}
+	candidates := make(map[string]*candidate)
+	for i, variant := range variants {
+		if variant == nil || variant.Properties == nil {
+			return nil
+		}
+		seen := make(map[string]struct{})
+		for propName, prop := range variant.Properties.FromOldest() {
+			if prop == nil || prop.Const == nil {
+				continue
+			}
+			var value string
+			if err := prop.Const.Decode(&value); err != nil || value == "" {
+				continue
+			}
+			seen[propName] = struct{}{}
+			c := candidates[propName]
+			if c == nil {
+				c = &candidate{values: make(map[string]string)}
+				candidates[propName] = c
+			}
+			if _, exists := c.values[value]; exists {
+				return nil
+			}
+			c.values[value] = variant.Name
+			if !isRequired(variant, propName) {
+				c.optional = true
+			}
+		}
+		for propName := range candidates {
+			if _, ok := seen[propName]; !ok && i > 0 {
+				delete(candidates, propName)
+			}
+		}
+	}
+	for propName, c := range candidates {
+		if len(c.values) == len(variants) {
+			return &Discriminator{PropertyName: propName, Mapping: c.values, Optional: c.optional}
+		}
+	}
+	return nil
+}

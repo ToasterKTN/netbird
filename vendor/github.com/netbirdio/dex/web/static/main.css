@@ -1,0 +1,237 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.dex-container {
+  color: #333;
+  margin: 60px auto;
+  max-width: 480px;
+  min-width: 320px;
+  padding: 0 16px;
+  text-align: center;
+}
+
+.dex-btn {
+  border-radius: 8px;
+  border: 0;
+  cursor: pointer;
+  font-size: 15px;
+  padding: 0;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.dex-btn:focus-visible {
+  outline: 2px solid #4A90D9;
+  outline-offset: 2px;
+}
+
+.dex-btn:active {
+  transform: scale(0.98);
+}
+
+.dex-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.dex-btn-icon {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 20px;
+  border-radius: 8px 0 0 8px;
+  float: left;
+  height: 40px;
+  margin-right: 4px;
+  width: 40px;
+}
+
+.dex-btn-icon--google {
+  background-color: #FFFFFF;
+  background-image: url(../static/img/google-icon.svg);
+}
+
+.dex-btn-icon--local {
+  background-color: #84B6EF;
+  background-image: url(../static/img/email-icon.svg);
+}
+
+.dex-btn-icon--gitea {
+  background-color: #F5F5F5;
+  background-image: url(../static/img/gitea-icon.svg);
+}
+
+.dex-btn-icon--github {
+  background-color: #F5F5F5;
+  background-image: url(../static/img/github-icon.svg);
+}
+
+.dex-btn-icon--gitlab {
+  background-color: #F5F5F5;
+  background-image: url(../static/img/gitlab-icon.svg);
+  background-size: contain;
+}
+
+.dex-btn-icon--keystone {
+  background-color: #F5F5F5;
+  background-image: url(../static/img/keystone-icon.svg);
+  background-size: contain;
+}
+
+.dex-btn-icon--oidc {
+  background-color: #EBEBEE;
+  background-image: url(../static/img/oidc-icon.svg);
+  background-size: contain;
+}
+
+.dex-btn-icon--bitbucket-cloud {
+  background-color: #205081;
+  background-image: url(../static/img/bitbucket-icon.svg);
+}
+
+.dex-btn-icon--atlassian-crowd {
+  background-color: #CFDCEA;
+  background-image: url(../static/img/atlassian-crowd-icon.svg);
+}
+
+.dex-btn-icon--ldap {
+  background-color: #84B6EF;
+  background-image: url(../static/img/ldap-icon.svg);
+}
+
+.dex-btn-icon--saml {
+  background-color: #84B6EF;
+  background-image: url(../static/img/saml-icon.svg);
+}
+
+.dex-btn-icon--linkedin {
+  background-image: url(../static/img/linkedin-icon.svg);
+  background-size: contain;
+}
+
+.dex-btn-icon--microsoft {
+  background-image: url(../static/img/microsoft-icon.svg);
+}
+
+.dex-btn-icon--mockCallback,
+.dex-btn-icon--mockPassword {
+  background-color: #6c5ce7;
+  background-image: url(../static/img/mock-icon.svg);
+}
+
+.dex-btn-text {
+  font-weight: 600;
+  line-height: 40px;
+  padding: 6px 14px;
+  text-align: center;
+}
+
+.dex-subtle-text {
+  color: #888;
+  font-size: 13px;
+}
+
+.dex-separator {
+  color: #aaa;
+}
+
+.dex-list {
+  color: #888;
+  display: inline-block;
+  font-size: 13px;
+  list-style: circle;
+  text-align: left;
+}
+
+.dex-info-table {
+  margin: 12px auto;
+  text-align: left;
+  max-width: 300px;
+}
+
+.dex-info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+}
+
+.dex-info-row:last-child {
+  border-bottom: none;
+}
+
+.dex-info-label {
+  color: #888;
+  font-weight: 500;
+}
+
+.dex-info-value {
+  color: #333;
+  text-align: right;
+  word-break: break-word;
+  min-width: 0;
+  max-width: 200px;
+}
+
+.dex-info-details {
+  color: #333;
+  font-size: 13px;
+  min-width: 0;
+  max-width: 200px;
+  text-align: right;
+}
+
+.dex-info-details summary {
+  cursor: pointer;
+  list-style: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #4A90D9;
+}
+
+.dex-info-details summary:hover {
+  text-decoration: underline;
+}
+
+.dex-info-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.dex-info-details summary::after {
+  content: " \25B8";
+  color: #aaa;
+}
+
+.dex-info-details[open] summary::after {
+  content: " \25BE";
+}
+
+.dex-info-details[open] > :not(summary) {
+  text-align: left;
+}
+
+.dex-info-details[open] summary {
+  margin-bottom: 4px;
+}
+
+.dex-info-details .dex-info-details__list {
+  margin: 0;
+  padding-left: 16px;
+  line-height: 1.8;
+}
+
+.dex-error-box {
+  background-color: #e5383b;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: normal;
+  margin: 20px auto;
+  max-width: 320px;
+  padding: 8px 12px;
+}

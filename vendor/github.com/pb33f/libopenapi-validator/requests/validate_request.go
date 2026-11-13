@@ -1,0 +1,353 @@
+// Copyright 2023-2026 Princess Beef Heavy Industries, LLC / Dave Shanley
+// SPDX-License-Identifier: MIT
+
+package requests
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"reflect"
+	"regexp"
+	"strconv"
+
+	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/santhosh-tekuri/jsonschema/v6"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
+
+	"github.com/pb33f/libopenapi-validator/config"
+	liberrors "github.com/pb33f/libopenapi-validator/errors"
+	"github.com/pb33f/libopenapi-validator/helpers"
+	"github.com/pb33f/libopenapi-validator/internal/requeststate"
+	"github.com/pb33f/libopenapi-validator/schema_validation"
+	"github.com/pb33f/libopenapi-validator/strict"
+)
+
+var instanceLocationRegex = regexp.MustCompile(`^/(\d+)`)
+
+// ValidateRequestSchemaInput contains parameters for request schema validation.
+type ValidateRequestSchemaInput struct {
+	Request      *http.Request   // Required: The HTTP request to validate
+	Schema       *base.Schema    // Required: The OpenAPI schema to validate against
+	Version      float32         // Required: OpenAPI version (3.0 or 3.1)
+	Options      []config.Option // Optional: Functional options (defaults applied if empty/nil)
+	BodyRequired bool            // Optional: Whether the request body is required (default false)
+	DecodedValue any             // Optional: A value produced by a registered body decoder
+	RawBody      []byte          // Optional: Original bytes used for diagnostics with DecodedValue
+	ValueDecoded bool            // Distinguishes an explicitly decoded nil from the legacy JSON path
+}
+
+func setRequestBody(request *http.Request, body []byte) {
+	requeststate.Install(request, body)
+}
+
+func readAndResetRequestBody(request *http.Request) []byte {
+	body, _ := requeststate.Snapshot(request)
+	return body
+}
+
+// ValidateRequestSchema will validate a http.Request pointer against a schema.
+// If validation fails, it will return a list of validation errors as the second return value.
+// The schema will be stored and reused from cache if available, otherwise it will be compiled on each call.
+func ValidateRequestSchema(input *ValidateRequestSchemaInput) (bool, []*liberrors.ValidationError) {
+	validationOptions := config.NewValidationOptions(input.Options...)
+	var validationErrors []*liberrors.ValidationError
+	var renderedSchema, jsonSchema []byte
+	var referenceSchema string
+	var compiledSchema *jsonschema.Schema
+	var cachedNode *yaml.Node
+	var resourceNodes map[string]*yaml.Node
+
+	if input.Schema == nil {
+		return false, []*liberrors.ValidationError{{
+			ValidationType:    helpers.RequestBodyValidation,
+			ValidationSubType: helpers.Schema,
+			Message:           "schema is nil",
+			Reason:            "The schema to validate against is nil",
+		}}
+	} else if input.Schema.GoLow() == nil {
+		return false, []*liberrors.ValidationError{{
+			ValidationType:    helpers.RequestBodyValidation,
+			ValidationSubType: helpers.Schema,
+			Message:           "schema cannot be rendered",
+			Reason:            "The schema does not have low-level information and cannot be rendered. Please ensure the schema is loaded from a document.",
+		}}
+	}
+
+	if validationOptions.SchemaCache != nil {
+		hash := schema_validation.SchemaCacheKey(
+			input.Schema.GoLow().Hash(),
+			input.Version,
+			schema_validation.SchemaValidationPurposeRequestBody,
+		)
+		if cached, ok := validationOptions.SchemaCache.Load(hash); ok && cached != nil && cached.CompiledSchema != nil {
+			renderedSchema = cached.RenderedInline
+			referenceSchema = cached.ReferenceSchema
+			jsonSchema = cached.RenderedJSON
+			compiledSchema = cached.CompiledSchema
+			cachedNode = cached.RenderedNode
+			resourceNodes = cached.ResourceNodes
+		}
+	}
+
+	// Cache miss or no cache - render and compile
+	if compiledSchema == nil {
+		compiled, err := schema_validation.CompileSchemaForValidation(
+			input.Schema,
+			schema_validation.SchemaValidationPurposeRequestBody,
+			validationOptions,
+			input.Version,
+		)
+		if err != nil {
+			validationErrors = append(validationErrors, &liberrors.ValidationError{
+				ValidationType:    helpers.RequestBodyValidation,
+				ValidationSubType: helpers.Schema,
+				Message: fmt.Sprintf("%s request body for '%s' failed schema compilation",
+					input.Request.Method, input.Request.URL.Path),
+				Reason:   fmt.Sprintf("The request schema failed to compile: %s", err.Error()),
+				SpecLine: 1,
+				SpecCol:  0,
+				HowToFix: "check the request schema for invalid JSON Schema syntax, complex regex patterns, or unsupported schema constructs",
+				Context:  input.Schema,
+			})
+			return false, validationErrors
+		}
+		renderedSchema = compiled.RenderedInline
+		referenceSchema = compiled.ReferenceSchema
+		jsonSchema = compiled.RenderedJSON
+		cachedNode = compiled.RenderedNode
+		resourceNodes = compiled.ResourceNodes
+		compiledSchema = compiled.CompiledSchema
+
+		if validationOptions.SchemaCache != nil {
+			hash := schema_validation.SchemaCacheKey(
+				input.Schema.GoLow().Hash(),
+				input.Version,
+				schema_validation.SchemaValidationPurposeRequestBody,
+			)
+			validationOptions.SchemaCache.Store(hash, compiled.ToCacheEntry(input.Schema))
+		}
+	}
+
+	request := input.Request
+	schema := input.Schema
+
+	requestBody := input.RawBody
+	decodedObj := input.DecodedValue
+	if !input.ValueDecoded {
+		requestBody = readAndResetRequestBody(request)
+	}
+
+	if !input.ValueDecoded && len(requestBody) > 0 {
+		err := json.Unmarshal(requestBody, &decodedObj)
+		if err != nil {
+			// cannot decode the request body, so it's not valid
+			validationErrors = append(validationErrors, &liberrors.ValidationError{
+				ValidationType:    helpers.RequestBodyValidation,
+				ValidationSubType: helpers.Schema,
+				Message: fmt.Sprintf("%s request body for '%s' failed to validate schema",
+					request.Method, request.URL.Path),
+				Reason:   fmt.Sprintf("The request body cannot be decoded: %s", err.Error()),
+				SpecLine: 1,
+				SpecCol:  0,
+				HowToFix: liberrors.HowToFixInvalidSchema,
+				Context:  schema,
+			})
+			return false, validationErrors
+		}
+	}
+
+	// no request body? but we do have a schema?
+	if len(requestBody) == 0 && len(jsonSchema) > 0 {
+		if !input.BodyRequired {
+			return true, nil
+		}
+
+		line := 1
+		col := 0
+		if schema.ParentProxy != nil {
+			if keyNode := schema.ParentProxy.GetSchemaKeyNode(); keyNode != nil {
+				line = keyNode.Line
+				col = keyNode.Column
+			}
+		}
+		if schema.Type != nil {
+			if low := schema.GoLow(); low != nil && low.Type.KeyNode != nil {
+				line = low.Type.KeyNode.Line
+				col = low.Type.KeyNode.Column
+			}
+		}
+
+		validationErrors = append(validationErrors, &liberrors.ValidationError{
+			ValidationType:    helpers.RequestBodyValidation,
+			ValidationSubType: helpers.Schema,
+			Message: fmt.Sprintf("%s request body is empty for '%s'",
+				request.Method, request.URL.Path),
+			Reason:   "The request body is empty but there is a schema defined",
+			SpecLine: line,
+			SpecCol:  col,
+			HowToFix: liberrors.HowToFixInvalidSchema,
+			Context:  schema,
+		})
+		return false, validationErrors
+	}
+
+	// validate the object against the schema
+	scErrs := compiledSchema.Validate(decodedObj)
+	if scErrs != nil {
+		var jk *jsonschema.ValidationError
+		var schemaValidationErrors []*liberrors.SchemaValidationFailure
+
+		if errors.As(scErrs, &jk) {
+			// flatten the validationErrors
+			schFlatErrs := helpers.FlattenSchemaOutputErrors(jk.DetailedOutput())
+
+			renderedNode, resourceNodes := schema_validation.DiagnosticLocationNodes(renderedSchema, cachedNode, resourceNodes)
+			var fallbackReferenceObject string
+			for q := range schFlatErrs {
+				er := schFlatErrs[q]
+
+				errMsg := er.Error.Kind.LocalizedString(message.NewPrinter(language.Tag{}))
+
+				if er.KeywordLocation == "" || helpers.IgnoreRegex.MatchString(errMsg) {
+					continue // ignore this error, it's useless tbh, utter noise.
+				}
+				if er.Error != nil {
+
+					// locate the violated property in the schema
+					var located *yaml.Node
+					if renderedNode != nil {
+						located = schema_validation.LocateSchemaPropertyNodeByJSONPathWithResources(
+							renderedNode,
+							resourceNodes,
+							er.KeywordLocation,
+							er.AbsoluteKeywordLocation,
+						)
+					}
+
+					// extract the element specified by the instance
+					val := instanceLocationRegex.FindStringSubmatch(er.InstanceLocation)
+					var referenceObject string
+
+					if len(val) > 0 {
+						referenceIndex, _ := strconv.Atoi(val[1])
+						if reflect.ValueOf(decodedObj).Type().Kind() == reflect.Slice {
+							found := decodedObj.([]any)[referenceIndex]
+							recoded, _ := json.MarshalIndent(found, "", "  ")
+							referenceObject = string(recoded)
+						}
+					}
+					if referenceObject == "" {
+						if fallbackReferenceObject == "" {
+							fallbackReferenceObject = string(requestBody)
+						}
+						referenceObject = fallbackReferenceObject
+					}
+
+					errMsg := er.Error.Kind.LocalizedString(message.NewPrinter(language.Tag{}))
+
+					violation := &liberrors.SchemaValidationFailure{
+						Reason:                  errMsg,
+						FieldName:               helpers.ExtractFieldNameFromStringLocation(er.InstanceLocation),
+						FieldPath:               helpers.ExtractJSONPathFromStringLocation(er.InstanceLocation),
+						InstancePath:            helpers.ConvertStringLocationToPathSegments(er.InstanceLocation),
+						KeywordLocation:         er.KeywordLocation,
+						ReferenceSchema:         referenceSchema,
+						ReferenceObject:         referenceObject,
+						OriginalJsonSchemaError: jk,
+					}
+					// if we have a location within the schema, add it to the error
+					if located != nil {
+
+						line := located.Line
+						// if the located node is a map or an array, then the actual human interpretable
+						// line on which the violation occurred is the line of the key, not the value.
+						if located.Kind == yaml.MappingNode || located.Kind == yaml.SequenceNode {
+							if line > 0 {
+								line--
+							}
+						}
+
+						// location of the violation within the rendered schema.
+						violation.Line = line
+						violation.Column = located.Column
+					}
+					schemaValidationErrors = append(schemaValidationErrors, violation)
+				}
+			}
+		}
+
+		line := 1
+		col := 0
+		if low := schema.GoLow(); low != nil && low.Type.KeyNode != nil {
+			line = low.Type.KeyNode.Line
+			col = low.Type.KeyNode.Column
+		}
+
+		// add the error to the list
+		validationErrors = append(validationErrors, &liberrors.ValidationError{
+			ValidationType:    helpers.RequestBodyValidation,
+			ValidationSubType: helpers.Schema,
+			Message: fmt.Sprintf("%s request body for '%s' failed to validate schema",
+				request.Method, request.URL.Path),
+			Reason: "The request body is defined as an object. " +
+				"However, it does not meet the schema requirements of the specification",
+			SpecLine:               line,
+			SpecCol:                col,
+			SchemaValidationErrors: schemaValidationErrors,
+			HowToFix:               liberrors.HowToFixInvalidSchema,
+			Context:                schema,
+		})
+	}
+	if len(validationErrors) > 0 {
+		return false, validationErrors
+	}
+
+	// strict mode: check for undeclared properties in request body
+	if validationOptions.StrictMode && decodedObj != nil {
+		strictValidator := strict.NewValidator(validationOptions, input.Version)
+		strictResult := strictValidator.Validate(strict.Input{
+			Schema:    schema,
+			Data:      decodedObj,
+			Direction: strict.DirectionRequest,
+			Options:   validationOptions,
+			BasePath:  "$.body",
+			Version:   input.Version,
+		})
+
+		if !strictResult.Valid {
+			for _, undeclared := range strictResult.UndeclaredValues {
+				switch undeclared.Type {
+				case strict.TypeReadOnlyProperty:
+					validationErrors = append(validationErrors,
+						liberrors.ReadOnlyPropertyError(
+							undeclared.Path, undeclared.Name, undeclared.Value,
+							request.URL.Path, request.Method,
+							undeclared.SpecLine, undeclared.SpecCol,
+						))
+				default:
+					validationErrors = append(validationErrors,
+						liberrors.UndeclaredPropertyError(
+							undeclared.Path,
+							undeclared.Name,
+							undeclared.Value,
+							undeclared.DeclaredProperties,
+							undeclared.Direction.String(),
+							request.URL.Path,
+							request.Method,
+							undeclared.SpecLine,
+							undeclared.SpecCol,
+						))
+				}
+			}
+		}
+	}
+
+	if len(validationErrors) > 0 {
+		return false, validationErrors
+	}
+	return true, nil
+}
